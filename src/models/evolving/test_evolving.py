@@ -14,7 +14,7 @@ minmaxscaler = preprocessing.MinMaxScaler()
 minmaxscaler.fit(standardized_X)
 X = minmaxscaler.transform(standardized_X)
 
-evol_model = EvolvingClustering.EvolvingClustering(macro_cluster_update=1,  variance_limit=0.01, debug=True)
+evol_model = EvolvingClustering.EvolvingClustering(macro_cluster_update=1,  variance_limit=0.001, debug=True)
 evol_model.fit(X)
 
 labels = evol_model.labels_

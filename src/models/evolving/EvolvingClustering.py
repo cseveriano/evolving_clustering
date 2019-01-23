@@ -12,6 +12,7 @@ class EvolvingClustering:
         self.micro_clusters = []
         self.macro_clusters = []
         self.graph = nx.Graph()
+        self.active_graph = nx.Graph()
         self.variance_limit = variance_limit
         self.macro_cluster_update = macro_cluster_update
         self.debug = debug
@@ -32,25 +33,23 @@ class EvolvingClustering:
         self.micro_clusters.append(EvolvingClustering.get_micro_cluster(id, num_samples, mean, scal, variance, density))
         self.graph.add_node(id)
 
-    def is_outlier(self, x, s_ik, mu_ik, var_ik):
+    def is_outlier(self, s_ik, var_ik, norm_ecc):
 
-        if s_ik == 2:
+        if s_ik < 3:
             outlier = (var_ik > self.variance_limit)
         else:
             mik_sik = 3 / (1 + math.exp(-0.007 * (s_ik - 100)))
             outlier_limit = ((mik_sik ** 2) + 1) / (2 * s_ik)
-            norm_ecc = EvolvingClustering.get_normalized_eccentricity(x, s_ik, mu_ik, var_ik)
             outlier = (norm_ecc > outlier_limit)
 
         return outlier
 
     @staticmethod
-    def update_micro_cluster(micro_cluster, x, num_samples, mean, scal, variance):
+    def update_micro_cluster(micro_cluster, x, num_samples, mean, scal, variance, norm_ecc):
         micro_cluster["num_samples"] = num_samples
         micro_cluster["mean"] = mean
         micro_cluster["scal"] = scal
         micro_cluster["variance"] = variance
-        norm_ecc = EvolvingClustering.get_normalized_eccentricity(x, num_samples, mean, variance)
         micro_cluster["density"] = 1 / norm_ecc
         micro_cluster["changed"] = True
 
@@ -59,16 +58,20 @@ class EvolvingClustering:
         s_ik = micro_cluster["num_samples"]
         mu_ik = micro_cluster["mean"]
         scal_ik = micro_cluster["scal"]
-        var_ik = micro_cluster["variance"]
 
         s_ik += 1
         mean = ((s_ik - 1) / s_ik) * mu_ik + (x / s_ik)
         scal = ((s_ik - 1) / s_ik) * scal_ik + (np.dot(x,x) / s_ik)
 
-        # variance = scal - np.dot(mean, mean)
-        delta = x - mean
-        variance = ((s_ik - 1) / s_ik) * var_ik + (np.dot(delta, delta) / (s_ik - 1))
-        return (s_ik, mean, scal, variance)
+        # Codigo Neto
+        variance = scal - np.dot(mean, mean)
+
+        # Codigo dissertacao
+        #delta = x - mean
+        #variance = ((s_ik - 1) / s_ik) * var_ik + (np.dot(delta, delta) / (s_ik - 1))
+
+        norm_ecc = EvolvingClustering.get_normalized_eccentricity(x, s_ik, mean, variance)
+        return (s_ik, mean, scal, variance, norm_ecc)
 
     @staticmethod
     def get_normalized_eccentricity(x, num_samples, mean, var):
@@ -76,8 +79,11 @@ class EvolvingClustering:
 
     @staticmethod
     def get_eccentricity(x, num_samples, mean, var):
-        a = mean - x
-        result = ((1/num_samples) + (np.dot(a, a) / (num_samples * (var))))
+        if (var == 0 & num_samples > 1):
+            result = 0
+        else:
+            a = mean - x
+            result = ((1/num_samples) + (np.dot(a, a) / (num_samples * (var))))
         return result
 
     def fit(self, X):
@@ -112,10 +118,10 @@ class EvolvingClustering:
 
             for mi in self.micro_clusters:
                 mi["changed"] = False
-                (num_samples, mean, scal, variance) = EvolvingClustering.get_updated_micro_cluster_values(xk, mi)
+                (num_samples, mean, scal, variance, norm_ecc) = EvolvingClustering.get_updated_micro_cluster_values(xk, mi)
 
-                if not self.is_outlier(xk, num_samples, mean, variance):
-                    self.update_micro_cluster(mi, xk, num_samples, mean, scal, variance)
+                if not self.is_outlier(num_samples, variance, norm_ecc):
+                    self.update_micro_cluster(mi, xk, num_samples, mean, scal, variance, norm_ecc)
                     new_micro_cluster = False
 
             if new_micro_cluster:
@@ -190,12 +196,15 @@ class EvolvingClustering:
         # Create macro-clusters from intersected micro-clusters
         for mi in changed_micro_clusters:
             for mj in self.micro_clusters:
-                if EvolvingClustering.has_intersection(mi, mj):
+                if (mi != mj) & EvolvingClustering.has_intersection(mi, mj):
                     self.graph.add_edge(mi["id"],mj["id"])
 
         self.macro_clusters = list(nx.connected_components(self.graph))
 
     def define_activations(self):
+
+        self.active_graph = self.graph.copy()
+
         for mg in self.macro_clusters:
             num_micro = len(mg)
             total_density = 0
@@ -210,7 +219,10 @@ class EvolvingClustering:
                 mi["active"] = (mi["num_samples"] > 2) and (mi["density"] >= mean_density)
 
                 if not mi["active"]:
-                    self.graph.remove_edges_from(list(self.graph.edges(mi["id"])))
+                    self.active_graph.remove_node(mi["id"])
+                    #self.active_graph.remove_edges_from([(mi["id"])])
+
+        self.macro_clusters = list(nx.connected_components(self.active_graph))
 
     def partial_fit(self, X, y=None):
         return self
