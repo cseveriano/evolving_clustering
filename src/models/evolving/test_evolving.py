@@ -1,29 +1,21 @@
-from sklearn import datasets
 from sklearn import metrics
 from sklearn import preprocessing
 from models.evolving import EvolvingClustering
 import numpy as np
+from models.evolving  import load_dataset
 
 import matplotlib.pyplot as plt
 from itertools import cycle, islice
 
-n_samples = 1500
-noisy_circles = datasets.make_circles(n_samples=n_samples, factor=.5,
-                                      noise=.05)
-noisy_moons = datasets.make_moons(n_samples=n_samples, noise=.05)
-blobs = datasets.make_blobs(n_samples=n_samples, random_state=8)
-no_structure = np.random.rand(n_samples, 2), None
-iris = datasets.load_iris()
 
-# X = iris.data
-# y = iris.target
-
-X, y = noisy_moons
-
+X, y = load_dataset.load_dataset("s2")
 standardized_X = preprocessing.scale(X)
+minmaxscaler = preprocessing.MinMaxScaler()
+minmaxscaler.fit(standardized_X)
+X = minmaxscaler.transform(standardized_X)
 
-evol_model = EvolvingClustering.EvolvingClustering(macro_cluster_update=100)
-evol_model.fit(standardized_X)
+evol_model = EvolvingClustering.EvolvingClustering(macro_cluster_update=1,  variance_limit=0.01, debug=True)
+evol_model.fit(X)
 
 labels = evol_model.labels_
 

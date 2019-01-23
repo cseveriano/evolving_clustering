@@ -2,10 +2,11 @@ import math
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
+from scipy.spatial import distance
 
 class EvolvingClustering:
-    def __init__(self, macro_cluster_update=100,
-                 verbose=0, variance_limit=0.001):
+    def __init__(self, macro_cluster_update=1000,
+                 verbose=0, variance_limit=0.001, debug=False):
         self.verbose = verbose
         self.total_num_samples = 0
         self.micro_clusters = []
@@ -13,57 +14,61 @@ class EvolvingClustering:
         self.graph = nx.Graph()
         self.variance_limit = variance_limit
         self.macro_cluster_update = macro_cluster_update
+        self.debug = debug
 
     @staticmethod
-    def get_micro_cluster(id, num_samples, mean, variance, density):
-        return {"id": id,"num_samples": num_samples, "mean": mean, "variance": variance, "density": density, "active": True}
+    def get_micro_cluster(id, num_samples, mean, scal, variance, density):
+        return {"id": id,"num_samples": num_samples, "mean": mean, "scal": scal, "variance": variance, "density": density, "active": True, "changed": True}
 
     def create_new_micro_cluster(self, x):
 
         id = len(self.micro_clusters)
         num_samples = 1
         mean = x
+        scal = np.dot(x,x)
         variance = 0
         density = 0
 
-        self.micro_clusters.append(EvolvingClustering.get_micro_cluster(id, num_samples, mean, variance, density))
+        self.micro_clusters.append(EvolvingClustering.get_micro_cluster(id, num_samples, mean, scal, variance, density))
         self.graph.add_node(id)
 
     def is_outlier(self, x, s_ik, mu_ik, var_ik):
 
-        mik_sik = 3 / (1 + math.exp(-0.007 * (s_ik - 100)))
-        outlier_limit = ((mik_sik ** 2) + 1) / (2 * s_ik)
-        norm_ecc = EvolvingClustering.get_normalized_eccentricity(x, s_ik, mu_ik, var_ik)
-
-        cond1 = (norm_ecc > outlier_limit)
-
         if s_ik == 2:
-            cond2 = (var_ik > self.variance_limit)
+            outlier = (var_ik > self.variance_limit)
         else:
-            cond2 = True
+            mik_sik = 3 / (1 + math.exp(-0.007 * (s_ik - 100)))
+            outlier_limit = ((mik_sik ** 2) + 1) / (2 * s_ik)
+            norm_ecc = EvolvingClustering.get_normalized_eccentricity(x, s_ik, mu_ik, var_ik)
+            outlier = (norm_ecc > outlier_limit)
 
-        return cond1 and cond2
+        return outlier
 
     @staticmethod
-    def update_micro_cluster(micro_cluster, x, num_samples, mean, variance):
+    def update_micro_cluster(micro_cluster, x, num_samples, mean, scal, variance):
         micro_cluster["num_samples"] = num_samples
         micro_cluster["mean"] = mean
+        micro_cluster["scal"] = scal
         micro_cluster["variance"] = variance
         norm_ecc = EvolvingClustering.get_normalized_eccentricity(x, num_samples, mean, variance)
         micro_cluster["density"] = 1 / norm_ecc
+        micro_cluster["changed"] = True
 
     @staticmethod
     def get_updated_micro_cluster_values(x, micro_cluster):
         s_ik = micro_cluster["num_samples"]
         mu_ik = micro_cluster["mean"]
+        scal_ik = micro_cluster["scal"]
         var_ik = micro_cluster["variance"]
 
         s_ik += 1
         mean = ((s_ik - 1) / s_ik) * mu_ik + (x / s_ik)
-        a = mean - x
-        variance = ((s_ik - 1) / s_ik) * var_ik + (1 / (s_ik - 1)) * np.dot(a,a)
+        scal = ((s_ik - 1) / s_ik) * scal_ik + (np.dot(x,x) / s_ik)
 
-        return (s_ik, mean, variance)
+        # variance = scal - np.dot(mean, mean)
+        delta = x - mean
+        variance = ((s_ik - 1) / s_ik) * var_ik + (np.dot(delta, delta) / (s_ik - 1))
+        return (s_ik, mean, scal, variance)
 
     @staticmethod
     def get_normalized_eccentricity(x, num_samples, mean, var):
@@ -78,6 +83,11 @@ class EvolvingClustering:
     def fit(self, X):
 
         inc_X = []
+        lenx = len(X)
+
+        if self.debug:
+            print("Fitting...")
+
         for xk in X:
             inc_X.append(list(xk))
             self.update_micro_clusters(xk)
@@ -86,8 +96,8 @@ class EvolvingClustering:
 
             self.total_num_samples += 1
 
-            if self.total_num_samples > 2:
-                self.plot_micro_clusters(np.array(inc_X))
+            if self.debug:
+                print('Fitting %d of %d' %(self.total_num_samples, lenx))
 
         self.plot_micro_clusters(X)
 
@@ -101,10 +111,11 @@ class EvolvingClustering:
             new_micro_cluster = True
 
             for mi in self.micro_clusters:
-                (num_samples, mean, variance) = EvolvingClustering.get_updated_micro_cluster_values(xk, mi)
+                mi["changed"] = False
+                (num_samples, mean, scal, variance) = EvolvingClustering.get_updated_micro_cluster_values(xk, mi)
 
                 if not self.is_outlier(xk, num_samples, mean, variance):
-                    self.update_micro_cluster(mi, xk, num_samples, mean, variance)
+                    self.update_micro_cluster(mi, xk, num_samples, mean, scal, variance)
                     new_micro_cluster = False
 
             if new_micro_cluster:
@@ -117,6 +128,10 @@ class EvolvingClustering:
     def predict_labels(self, X):
         self.labels_ = np.zeros(len(X), dtype=int)
         index = 0
+        lenx = len(X)
+
+        if self.debug:
+            print('Predicting...')
 
         for xk in X:
             memberships = []
@@ -127,6 +142,9 @@ class EvolvingClustering:
 
             self.labels_[index] = np.argmax(memberships)
             index += 1
+
+            if self.debug:
+                print('Predicting %d of %d' % (index, lenx))
 
     @staticmethod
     def calculate_membership(x, active_micro_clusters):
@@ -158,19 +176,23 @@ class EvolvingClustering:
                 active_micro_clusters.append(m)
         return active_micro_clusters
 
+    def get_changed_micro_clusters(self):
+        changed_micro_clusters = []
+
+        for m in self.micro_clusters:
+            if m["changed"]:
+                changed_micro_clusters.append(m)
+        return changed_micro_clusters
+
     def define_macro_clusters(self):
-        active_micro_clusters = self.get_all_active_micro_clusters()
-        num_micro_clusters = len(active_micro_clusters)
+        changed_micro_clusters = self.get_changed_micro_clusters()
 
         # Create macro-clusters from intersected micro-clusters
-        for i in np.arange(num_micro_clusters - 1):
-            for j in np.arange((i+1), num_micro_clusters):
-
-                mi = active_micro_clusters[i]
-                mj = active_micro_clusters[j]
-
+        for mi in changed_micro_clusters:
+            for mj in self.micro_clusters:
                 if EvolvingClustering.has_intersection(mi, mj):
                     self.graph.add_edge(mi["id"],mj["id"])
+
         self.macro_clusters = list(nx.connected_components(self.graph))
 
     def define_activations(self):
@@ -181,9 +203,11 @@ class EvolvingClustering:
             for i in mg:
                 total_density += self.micro_clusters[i]["density"]
 
+            mean_density = total_density / num_micro
+
             for i in mg:
                 mi = self.micro_clusters[i]
-                mi["active"] = (mi["density"] >= (total_density / num_micro))
+                mi["active"] = (mi["num_samples"] > 2) and (mi["density"] >= mean_density)
 
                 if not mi["active"]:
                     self.graph.remove_edges_from(list(self.graph.edges(mi["id"])))
@@ -203,15 +227,16 @@ class EvolvingClustering:
         var_i = mi["variance"]
         var_j = mj["variance"]
 
-        diff = mu_i - mu_j
-        dist = math.sqrt(np.dot(diff, diff))
+        dist = distance.euclidean(mu_i, mu_j)
         deviation = 2 * (math.sqrt(var_i) + math.sqrt(var_j))
 
-        return dist < deviation
+        return dist <= deviation
 
     def plot_micro_clusters(self, X):
+
         micro_clusters = self.get_all_active_micro_clusters()
         ax = plt.gca()
+
         ax.scatter(X[:, 0], X[:, 1], s=10, color='b')
 
         for m in micro_clusters:
@@ -221,3 +246,4 @@ class EvolvingClustering:
             circle = plt.Circle(mean, std, color='r', fill=False)
 
             ax.add_artist(circle)
+        plt.draw()
