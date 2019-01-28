@@ -105,7 +105,7 @@ for i_dataset, (dataset, algo_params) in enumerate(datasets):
     # gmm = mixture.GaussianMixture(
     #     n_components=params['n_clusters'], covariance_type='full')
 
-    evol = EvolvingClustering.EvolvingClustering()
+    evol = EvolvingClustering.EvolvingClustering(macro_cluster_update=1, variance_limit=0.01, debug=False)
 
     # clustering_algorithms = (
     #     ('MiniBatchKMeans', two_means),

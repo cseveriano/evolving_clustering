@@ -105,7 +105,8 @@ class EvolvingClustering:
             if self.debug:
                 print('Fitting %d of %d' %(self.total_num_samples, lenx))
 
-        self.plot_micro_clusters(X)
+        if self.debug:
+            self.plot_micro_clusters(X)
 
         self.predict_labels(X)
 
@@ -196,7 +197,7 @@ class EvolvingClustering:
         # Create macro-clusters from intersected micro-clusters
         for mi in changed_micro_clusters:
             for mj in self.micro_clusters:
-                if (mi != mj) & EvolvingClustering.has_intersection(mi, mj):
+                if (mi["id"] != mj["id"]) & EvolvingClustering.has_intersection(mi, mj):
                     self.graph.add_edge(mi["id"],mj["id"])
 
         self.macro_clusters = list(nx.connected_components(self.graph))
