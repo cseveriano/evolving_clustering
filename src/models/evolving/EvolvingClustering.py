@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.spatial import distance
 
 class EvolvingClustering:
-    def __init__(self, macro_cluster_update=1000,
+    def __init__(self, macro_cluster_update=1,
                  verbose=0, variance_limit=0.001, debug=False):
         self.verbose = verbose
         self.total_num_samples = 0
@@ -64,11 +64,12 @@ class EvolvingClustering:
         scal = ((s_ik - 1) / s_ik) * scal_ik + (np.dot(x,x) / s_ik)
 
         # Codigo Neto
-        variance = scal - np.dot(mean, mean)
+        #variance = scal - np.dot(mean, mean)
 
         # Codigo dissertacao
-        #delta = x - mean
-        #variance = ((s_ik - 1) / s_ik) * var_ik + (np.dot(delta, delta) / (s_ik - 1))
+        var_ik = micro_cluster["variance"]
+        delta = x - mean
+        variance = ((s_ik - 1) / s_ik) * var_ik + (np.dot(delta, delta) / (s_ik - 1))
 
         norm_ecc = EvolvingClustering.get_normalized_eccentricity(x, s_ik, mean, variance)
         return (s_ik, mean, scal, variance, norm_ecc)
@@ -92,7 +93,7 @@ class EvolvingClustering:
         lenx = len(X)
 
         if self.debug:
-            print("Fitting...")
+            print("Fitting2...")
 
         for xk in X:
             inc_X.append(list(xk))
@@ -103,12 +104,11 @@ class EvolvingClustering:
             self.total_num_samples += 1
 
             if self.debug:
-                print('Fitting %d of %d' %(self.total_num_samples, lenx))
+                print('Fitting2 %d of %d' %(self.total_num_samples, lenx))
 
         if self.debug:
             self.plot_micro_clusters(X)
 
-        self.predict_labels(X)
 
     def update_micro_clusters(self, xk):
         # First sample
@@ -132,7 +132,7 @@ class EvolvingClustering:
         self.define_macro_clusters()
         self.define_activations()
 
-    def predict_labels(self, X):
+    def predict(self, X):
         self.labels_ = np.zeros(len(X), dtype=int)
         index = 0
         lenx = len(X)
@@ -152,6 +152,8 @@ class EvolvingClustering:
 
             if self.debug:
                 print('Predicting %d of %d' % (index, lenx))
+
+        return self.labels_
 
     @staticmethod
     def calculate_membership(x, active_micro_clusters):
@@ -197,10 +199,19 @@ class EvolvingClustering:
         # Create macro-clusters from intersected micro-clusters
         for mi in changed_micro_clusters:
             for mj in self.micro_clusters:
-                if (mi["id"] != mj["id"]) & EvolvingClustering.has_intersection(mi, mj):
-                    self.graph.add_edge(mi["id"],mj["id"])
+                if mi["id"] != mj["id"] :
+                    edge = (mi["id"],mj["id"])
+                    if EvolvingClustering.has_intersection(mi, mj):
+                        self.graph.add_edge(*edge)
+                    elif EvolvingClustering.nodes_connected(mi["id"],mj["id"], self.graph):
+                        self.graph.remove_edge(*edge)
+
 
         self.macro_clusters = list(nx.connected_components(self.graph))
+
+    @staticmethod
+    def nodes_connected(u, v, G):
+        return u in G.neighbors(v)
 
     def define_activations(self):
 
@@ -225,13 +236,6 @@ class EvolvingClustering:
 
         self.macro_clusters = list(nx.connected_components(self.active_graph))
 
-    def partial_fit(self, X, y=None):
-        return self
-
-    def predict(self, X):
-        labels = []
-
-        return labels
 
     @staticmethod
     def has_intersection(mi, mj):
@@ -250,7 +254,7 @@ class EvolvingClustering:
         micro_clusters = self.get_all_active_micro_clusters()
         ax = plt.gca()
 
-        ax.scatter(X[:, 0], X[:, 1], s=10, color='b')
+        ax.scatter(X[:, 0], X[:, 1], s=1, color='b')
 
         for m in micro_clusters:
             mean = m["mean"]

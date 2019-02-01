@@ -11,7 +11,7 @@ from sklearn.neighbors import kneighbors_graph
 from sklearn.preprocessing import StandardScaler
 from itertools import cycle, islice
 
-from models.evolving import EvolvingClustering
+from evolving import EvolvingClustering
 
 np.random.seed(0)
 
