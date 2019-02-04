@@ -11,6 +11,7 @@ class EvolvingClustering:
         self.total_num_samples = 0
         self.micro_clusters = []
         self.macro_clusters = []
+        self.active_macro_clusters = []
         self.graph = nx.Graph()
         self.active_graph = nx.Graph()
         self.variance_limit = variance_limit
@@ -69,7 +70,7 @@ class EvolvingClustering:
         # Codigo dissertacao
         var_ik = micro_cluster["variance"]
         delta = x - mean
-        variance = ((s_ik - 1) / s_ik) * var_ik + (np.dot(delta, delta) / (s_ik - 1))
+        variance = ((s_ik - 1) / s_ik) * var_ik + (np.linalg.norm(delta) ** 2 / (s_ik - 1))
 
         norm_ecc = EvolvingClustering.get_normalized_eccentricity(x, s_ik, mean, variance)
         return (s_ik, mean, scal, variance, norm_ecc)
@@ -80,8 +81,8 @@ class EvolvingClustering:
 
     @staticmethod
     def get_eccentricity(x, num_samples, mean, var):
-        if (var == 0 & num_samples > 1):
-            result = 0
+        if var == 0 and num_samples > 1:
+            result = (1/num_samples)
         else:
             a = mean - x
             result = ((1/num_samples) + (np.dot(a, a) / (num_samples * (var))))
@@ -93,7 +94,7 @@ class EvolvingClustering:
         lenx = len(X)
 
         if self.debug:
-            print("Fitting2...")
+            print("Training...")
 
         for xk in X:
             inc_X.append(list(xk))
@@ -104,10 +105,10 @@ class EvolvingClustering:
             self.total_num_samples += 1
 
             if self.debug:
-                print('Fitting2 %d of %d' %(self.total_num_samples, lenx))
+                print('Training %d of %d' %(self.total_num_samples, lenx))
 
-        if self.debug:
-            self.plot_micro_clusters(X)
+        # if self.debug:
+        #     self.plot_micro_clusters(X)
 
 
     def update_micro_clusters(self, xk):
@@ -142,7 +143,7 @@ class EvolvingClustering:
 
         for xk in X:
             memberships = []
-            for mg in self.macro_clusters:
+            for mg in self.active_macro_clusters:
                 active_micro_clusters = self.get_active_micro_clusters(mg)
 
                 memberships.append(EvolvingClustering.calculate_membership(xk, active_micro_clusters))
@@ -234,7 +235,7 @@ class EvolvingClustering:
                     self.active_graph.remove_node(mi["id"])
                     #self.active_graph.remove_edges_from([(mi["id"])])
 
-        self.macro_clusters = list(nx.connected_components(self.active_graph))
+        self.active_macro_clusters = list(nx.connected_components(self.active_graph))
 
 
     @staticmethod
