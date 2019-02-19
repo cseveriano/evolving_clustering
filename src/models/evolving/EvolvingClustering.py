@@ -6,7 +6,7 @@ from scipy.spatial import distance
 
 class EvolvingClustering:
     def __init__(self, macro_cluster_update=1,
-                 verbose=0, variance_limit=0.001, debug=False):
+                 verbose=0, variance_limit=0.001, debug=False, plot_graph=False):
         self.verbose = verbose
         self.total_num_samples = 0
         self.micro_clusters = []
@@ -17,21 +17,21 @@ class EvolvingClustering:
         self.variance_limit = variance_limit
         self.macro_cluster_update = macro_cluster_update
         self.debug = debug
+        self.plot_graph = plot_graph
 
     @staticmethod
-    def get_micro_cluster(id, num_samples, mean, scal, variance, density):
-        return {"id": id,"num_samples": num_samples, "mean": mean, "scal": scal, "variance": variance, "density": density, "active": True, "changed": True}
+    def get_micro_cluster(id, num_samples, mean, variance, density):
+        return {"id": id,"num_samples": num_samples, "mean": mean, "variance": variance, "density": density, "active": True, "changed": True}
 
     def create_new_micro_cluster(self, x):
 
         id = len(self.micro_clusters)
         num_samples = 1
         mean = x
-        scal = np.dot(x,x)
         variance = 0
         density = 0
 
-        self.micro_clusters.append(EvolvingClustering.get_micro_cluster(id, num_samples, mean, scal, variance, density))
+        self.micro_clusters.append(EvolvingClustering.get_micro_cluster(id, num_samples, mean, variance, density))
         self.graph.add_node(id)
 
     def is_outlier(self, s_ik, var_ik, norm_ecc):
@@ -46,10 +46,9 @@ class EvolvingClustering:
         return outlier
 
     @staticmethod
-    def update_micro_cluster(micro_cluster, x, num_samples, mean, scal, variance, norm_ecc):
+    def update_micro_cluster(micro_cluster, x, num_samples, mean, variance, norm_ecc):
         micro_cluster["num_samples"] = num_samples
         micro_cluster["mean"] = mean
-        micro_cluster["scal"] = scal
         micro_cluster["variance"] = variance
         micro_cluster["density"] = 1 / norm_ecc
         micro_cluster["changed"] = True
@@ -58,14 +57,9 @@ class EvolvingClustering:
     def get_updated_micro_cluster_values(x, micro_cluster):
         s_ik = micro_cluster["num_samples"]
         mu_ik = micro_cluster["mean"]
-        scal_ik = micro_cluster["scal"]
 
         s_ik += 1
         mean = ((s_ik - 1) / s_ik) * mu_ik + (x / s_ik)
-        scal = ((s_ik - 1) / s_ik) * scal_ik + (np.dot(x,x) / s_ik)
-
-        # Codigo Neto
-        #variance = scal - np.dot(mean, mean)
 
         # Codigo dissertacao
         var_ik = micro_cluster["variance"]
@@ -73,7 +67,7 @@ class EvolvingClustering:
         variance = ((s_ik - 1) / s_ik) * var_ik + (np.linalg.norm(delta) ** 2 / (s_ik - 1))
 
         norm_ecc = EvolvingClustering.get_normalized_eccentricity(x, s_ik, mean, variance)
-        return (s_ik, mean, scal, variance, norm_ecc)
+        return (s_ik, mean, variance, norm_ecc)
 
     @staticmethod
     def get_normalized_eccentricity(x, num_samples, mean, var):
@@ -85,19 +79,19 @@ class EvolvingClustering:
             result = (1/num_samples)
         else:
             a = mean - x
-            result = ((1/num_samples) + (np.dot(a, a) / (num_samples * (var))))
+            # result = ((1/num_samples) + (np.dot(a, a) / (num_samples * (var))))
+            result = ((1 / num_samples) + (np.linalg.norm(a) ** 2 / (num_samples * (var))))
+
         return result
 
     def fit(self, X):
 
-        inc_X = []
         lenx = len(X)
 
         if self.debug:
             print("Training...")
 
         for xk in X:
-            inc_X.append(list(xk))
             self.update_micro_clusters(xk)
             if (self.total_num_samples > 0) and (self.total_num_samples % self.macro_cluster_update == 0):
                 self.update_macro_clusters()
@@ -107,8 +101,8 @@ class EvolvingClustering:
             if self.debug:
                 print('Training %d of %d' %(self.total_num_samples, lenx))
 
-        # if self.debug:
-        #     self.plot_micro_clusters(X)
+        if self.plot_graph:
+            self.plot_micro_clusters(X)
 
 
     def update_micro_clusters(self, xk):
@@ -120,10 +114,10 @@ class EvolvingClustering:
 
             for mi in self.micro_clusters:
                 mi["changed"] = False
-                (num_samples, mean, scal, variance, norm_ecc) = EvolvingClustering.get_updated_micro_cluster_values(xk, mi)
+                (num_samples, mean, variance, norm_ecc) = EvolvingClustering.get_updated_micro_cluster_values(xk, mi)
 
                 if not self.is_outlier(num_samples, variance, norm_ecc):
-                    self.update_micro_cluster(mi, xk, num_samples, mean, scal, variance, norm_ecc)
+                    self.update_micro_cluster(mi, xk, num_samples, mean, variance, norm_ecc)
                     new_micro_cluster = False
 
             if new_micro_cluster:
@@ -169,6 +163,27 @@ class EvolvingClustering:
             t = 1 - EvolvingClustering.get_normalized_eccentricity(x, m["num_samples"], m["mean"], m["variance"])
             mb += (d / total_density) * t
         return mb
+
+
+    @staticmethod
+    def calculate_micro_membership(x, params):
+
+        micro_cluster = params[0]
+        total_density = params[1]
+
+        d = micro_cluster["density"]
+
+        t = 1 - EvolvingClustering.get_normalized_eccentricity(x, micro_cluster["num_samples"], micro_cluster["mean"], micro_cluster["variance"])
+        return (d / total_density) * t
+
+    def get_total_density(self):
+        active_mcs = self.get_all_active_micro_clusters()
+        total_density = 0
+
+        for m in active_mcs:
+            total_density += m["density"]
+
+        return total_density
 
     def get_active_micro_clusters(self, mg):
         active_micro_clusters = []

@@ -66,6 +66,8 @@ datasets = [
     (no_structure, {})]
 
 for i_dataset, (dataset, algo_params) in enumerate(datasets):
+
+    print("Processing dataset ", i_dataset)
     # update parameters with dataset-specific values
     params = default_base.copy()
     params.update(algo_params)
@@ -127,6 +129,8 @@ for i_dataset, (dataset, algo_params) in enumerate(datasets):
 
     for name, algorithm in clustering_algorithms:
         t0 = time.time()
+
+        print("Clustering method: ", name)
 
         # catch warnings related to kneighbors_graph
         with warnings.catch_warnings():

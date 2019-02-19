@@ -11,7 +11,7 @@ from matplotlib import cm
 def plot_macro_clusters(X, model):
 
 
-    macro_clusters = model.macro_clusters
+    macro_clusters = model.active_macro_clusters
     colors = cm.rainbow(np.linspace(0, 1, len(macro_clusters)))
 
     ax = plt.gca()
