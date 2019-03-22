@@ -1,7 +1,7 @@
 import numpy as np
 import math
 from sklearn import preprocessing
-from evolving import EvolvingClustering, load_dataset, Metrics
+from evolving import EvolvingClustering, load_dataset, Metrics, util
 import matplotlib
 import matplotlib.pyplot as plt
 from itertools import cycle, islice
@@ -31,7 +31,6 @@ def plot_macro_clusters(X, model):
 
 cmap = plt.cm.get_cmap('rainbow')
 
-
 X, y = load_dataset.load_dataset("s2")
 standardized_X = preprocessing.scale(X)
 minmaxscaler = preprocessing.MinMaxScaler()
@@ -39,7 +38,7 @@ minmaxscaler.fit(standardized_X)
 X = minmaxscaler.transform(standardized_X)
 
 ## Running training and prediction..
-evol_model = EvolvingClustering.EvolvingClustering(macro_cluster_update=1,  variance_limit=0.001, debug=True)
+evol_model = EvolvingClustering.EvolvingClustering(macro_cluster_update=1,  variance_limit=0.01, debug=True)
 evol_model.fit(X)
 y_pred = evol_model.predict(X)
 
@@ -53,16 +52,16 @@ pickle.dump(evol_model, open("evol_model.pkl", "wb"))
 
 y_pred = [x+1 for x in y_pred]
 
-plot_macro_clusters(X, evol_model)
-
-plt.figure()
-plt.scatter(X[:, 0], X[:, 1], c=y_pred, s=1, cmap='viridis')
-plt.show()
-
-y = y[:,0]
-plt.figure()
-plt.scatter(X[:, 0], X[:, 1], c=y, s=1, cmap='viridis')
-plt.show()
+# plot_macro_clusters(X, evol_model)
+#
+# plt.figure()
+# plt.scatter(X[:, 0], X[:, 1], c=y_pred, s=1, cmap='viridis')
+# plt.show()
+#
+# y = y[:,0]
+# plt.figure()
+# plt.scatter(X[:, 0], X[:, 1], c=y, s=1, cmap='viridis')
+# plt.show()
 
 
 # colors = np.array(list(islice(cycle(['#377eb8', '#ff7f00', '#4daf4a',
@@ -83,6 +82,7 @@ plt.show()
 # plt.scatter(X[:, 0], X[:, 1], s=10, color=colors[y])
 # plt.show()
 
+y_pred = util.adjust_lables(y_pred, y)
 
 print("Purity: %10.4f"% (Metrics.purity(y,y_pred)))
 print("Precision: %10.4f"% (Metrics.precision(y,y_pred)))

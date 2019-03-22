@@ -27,19 +27,15 @@ class MixtureModel:
             self.apply_drift(mixture_model_pre, target_drift)
 
     def apply_drift(self, mixture_model_pre, target_drift):
-        adjust_factor = target_drift ** 2.0
+
         mean = np.zeros(self.dimensions)
         for i in np.arange(self.num_models):
-            if i < mixture_model_pre.get_num_models():
-                self.weights[i] = (self.weights[i] * adjust_factor) + (
-                        mixture_model_pre.get_weight[i] * (1 - adjust_factor))
-
             for j in np.arange(self.dimensions):
-                mean[j] = (self.get_mean(i)[j] * adjust_factor) + (
-                        mixture_model_pre.get_mean(i)[j] * (1 - adjust_factor))
-        self.normalize_weights()
+                signal = np.random.choice([-1, 1])
+                mean[j] = (signal * mixture_model_pre.get_mean(i)[j] * target_drift)
+            self.set_mean(i, mean)
 
-    def normalize_weights(self, weightSum):
+    def normalize_weights(self):
         weightSum = sum(self.weights)
         self.weights = [w / weightSum for w in self.weights]
 
