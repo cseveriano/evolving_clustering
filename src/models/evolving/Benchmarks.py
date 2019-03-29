@@ -21,9 +21,10 @@ def prequential_evaluation(method, data, labels, metric, train_size, window_size
     error_list = []
 
     while test_end < limit:
-        train_start, train_end, test_start, test_end = getDataIndex(index, train_size, window_size)
+        train_start, train_end, test_start, test_end = getDataIndex(index, train_size, window_size, limit)
         train_data = data[train_start:train_end]
         test_data = data[test_start:test_end]
+        index = test_start
 
         method.fit(train_data)
         y_hat = method.predict(test_data)
@@ -36,7 +37,7 @@ def prequential_evaluation(method, data, labels, metric, train_size, window_size
     return accumulated_error, error_list
 
 
-def getDataIndex(index, train_size, window_size):
+def getDataIndex(index, train_size, window_size, limit):
 
     train_start = index
 
@@ -46,6 +47,6 @@ def getDataIndex(index, train_size, window_size):
         train_end = index + window_size
 
     test_start = train_end
-    test_end = test_start + window_size
+    test_end = min(test_start + window_size, limit)
 
     return train_start, train_end, test_start, test_end
