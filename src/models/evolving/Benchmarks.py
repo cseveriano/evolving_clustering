@@ -1,7 +1,8 @@
 import numpy as np
+from evolving import util
 
 
-def prequential_evaluation(method, data, labels, metric, train_size, window_size=1, fading_factor=1):
+def prequential_evaluation(method, data, labels, metric, train_size, window_size=1, fading_factor=1, adjust_labels=0):
     '''
     :param method: clustering method to be evaluated
     :param data: data for training and test
@@ -10,6 +11,7 @@ def prequential_evaluation(method, data, labels, metric, train_size, window_size
     :param train_size: number of samples for the first training step
     :param window_size: window size for each prequential iteration
     :param fading_factor: fading factor for older test samples
+    :param adjust_labels: adjust labels given the original index. 0 = no adjust, 1 = adjuts in first training, 2 = adjust during the entire prequential process
     :return:
     accumulated error, error list
     '''
@@ -29,6 +31,9 @@ def prequential_evaluation(method, data, labels, metric, train_size, window_size
         method.fit(train_data)
         y_hat = method.predict(test_data)
         y = labels[test_start:test_end]
+
+        if adjust_labels == 2 or (index == test_start and adjust_labels == 1):
+            y_hat = util.adjust_labels(y_hat, y)
 
         error = metric(y, y_hat)
         accumulated_error += fading_factor * error

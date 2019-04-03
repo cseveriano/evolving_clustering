@@ -24,6 +24,11 @@ def load_dataset(dataset_name, n_samples=1500):
         iris = datasets.load_iris()
         X = iris.data
         y = iris.target
+    elif dataset_name == "stream1":
+        path = os.path.join(os.getcwd(), "../../../data/experiments/stream/stream_exp1.csv")
+        data = pd.read_csv(path, sep=",")
+        X = data[['X1', 'X2']].values
+        y = data['class'].values
     elif dataset_name == "s2":
         Xpath = os.path.join(os.getcwd(), "../../../references/Codigos_MicroTeda/Bases de Dados/s2.txt")
         X = pd.read_csv(Xpath, sep="    ", header=None).values
