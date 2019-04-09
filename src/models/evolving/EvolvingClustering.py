@@ -260,7 +260,9 @@ class EvolvingClustering:
         var_i = mi["variance"]
         var_j = mj["variance"]
 
-        dist = distance.euclidean(mu_i, mu_j)
+        dist = [(a - b) ** 2 for a, b in zip(mu_i, mu_j)]
+        dist = math.sqrt(sum(dist))
+
         deviation = 2 * (math.sqrt(var_i) + math.sqrt(var_j))
 
         return dist <= deviation
