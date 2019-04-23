@@ -79,12 +79,11 @@ class EvolvingClustering:
             result = (1/num_samples)
         else:
             a = mean - x
-            # result = ((1/num_samples) + (np.dot(a, a) / (num_samples * (var))))
             result = ((1 / num_samples) + (np.linalg.norm(a) ** 2 / (num_samples * (var))))
 
         return result
 
-    def fit(self, X):
+    def fit(self, X, update_macro_clusters=True):
 
         lenx = len(X)
 
@@ -93,13 +92,16 @@ class EvolvingClustering:
 
         for xk in X:
             self.update_micro_clusters(xk)
-            if (self.total_num_samples > 0) and (self.total_num_samples % self.macro_cluster_update == 0):
-                self.update_macro_clusters()
 
             self.total_num_samples += 1
 
             if self.debug:
                 print('Training %d of %d' %(self.total_num_samples, lenx))
+
+        if update_macro_clusters:
+            if self.debug:
+                print('Updating Macro_clusters')
+            self.update_macro_clusters()
 
         if self.plot_graph:
             self.plot_micro_clusters(X)
@@ -210,7 +212,7 @@ class EvolvingClustering:
         return changed_micro_clusters
 
     def define_macro_clusters(self):
-        changed_micro_clusters = self.get_changed_micro_clusters()
+        changed_micro_clusters = self.micro_clusters
 
         # Create macro-clusters from intersected micro-clusters
         for mi in changed_micro_clusters:
