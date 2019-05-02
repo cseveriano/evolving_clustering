@@ -2,7 +2,7 @@ import math
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
-from scipy.spatial import distance
+import itertools as it
 
 class EvolvingClustering:
     def __init__(self, macro_cluster_update=1,
@@ -211,21 +211,25 @@ class EvolvingClustering:
                 changed_micro_clusters.append(m)
         return changed_micro_clusters
 
+
     def define_macro_clusters(self):
-        changed_micro_clusters = self.micro_clusters
+        micro_clusters_pairs = list(it.combinations(self.micro_clusters, 2))
 
         # Create macro-clusters from intersected micro-clusters
-        for mi in changed_micro_clusters:
-            for mj in self.micro_clusters:
-                if mi["id"] != mj["id"] :
-                    edge = (mi["id"],mj["id"])
-                    if EvolvingClustering.has_intersection(mi, mj):
-                        self.graph.add_edge(*edge)
-                    elif EvolvingClustering.nodes_connected(mi["id"],mj["id"], self.graph):
-                        self.graph.remove_edge(*edge)
-
+        for m in micro_clusters_pairs:
+            mi = m[0]
+            mj = m[1]
+            if mi["id"] != mj["id"] :
+                edge = (mi["id"],mj["id"])
+                if EvolvingClustering.has_intersection(mi, mj):
+                    self.graph.add_edge(*edge)
+                elif EvolvingClustering.nodes_connected(mi["id"],mj["id"], self.graph):
+                    self.graph.remove_edge(*edge)
 
         self.macro_clusters = list(nx.connected_components(self.graph))
+
+
+
 
     @staticmethod
     def nodes_connected(u, v, G):
