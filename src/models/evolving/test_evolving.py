@@ -2,6 +2,7 @@ from sklearn import preprocessing
 from evolving import EvolvingClustering, load_dataset, Metrics, util
 import matplotlib.pyplot as plt
 import pickle
+from time import time as time
 
 cmap = plt.cm.get_cmap('rainbow')
 
@@ -12,11 +13,16 @@ minmaxscaler.fit(standardized_X)
 X = minmaxscaler.transform(standardized_X)
 
 ## Running training and prediction..
-evol_model = EvolvingClustering.EvolvingClustering(variance_limit=0.01, debug=True)
+evol_model = EvolvingClustering.EvolvingClustering(variance_limit=0.001, debug=False)
+
+tic = time()
 evol_model.fit(X)
+tac = time()
+print('Operation took {} ms'.format((tac - tic) * 1e3))
+
 y_pred = evol_model.predict(X)
 
-pickle.dump(evol_model, open("evol_model.pkl", "wb"))
+#pickle.dump(evol_model, open("evol_model.pkl", "wb"))
 ## END Running training and prediction..
 
 ## Load pickle

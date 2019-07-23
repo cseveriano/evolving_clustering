@@ -3,6 +3,7 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 import itertools as it
+from numba import jit
 
 class EvolvingClustering:
     def __init__(self, macro_cluster_update=1,
@@ -54,32 +55,37 @@ class EvolvingClustering:
         micro_cluster["changed"] = True
 
     @staticmethod
-    def get_updated_micro_cluster_values(x, micro_cluster):
-        s_ik = micro_cluster["num_samples"]
-        mu_ik = micro_cluster["mean"]
+    def get_updated_micro_cluster_values(x, s_ik, mu_ik, var_ik):
 
         s_ik += 1
         mean = ((s_ik - 1) / s_ik) * mu_ik + (x / s_ik)
 
         # Codigo dissertacao
-        var_ik = micro_cluster["variance"]
         delta = x - mean
-        variance = ((s_ik - 1) / s_ik) * var_ik + (np.linalg.norm(delta) ** 2 / (s_ik - 1))
+        variance = EvolvingClustering.update_variance(delta, s_ik, var_ik)
 
         norm_ecc = EvolvingClustering.get_normalized_eccentricity(x, s_ik, mean, variance)
         return (s_ik, mean, variance, norm_ecc)
 
     @staticmethod
-    def get_normalized_eccentricity(x, num_samples, mean, var):
-        return EvolvingClustering.get_eccentricity(x, num_samples, mean, var) / 2
+    @jit(nopython=True)
+    def update_variance(delta, s_ik, var_ik):
+        variance = ((s_ik - 1) / s_ik) * var_ik + (np.linalg.norm(delta) ** 2 / (s_ik - 1))
+        return variance
 
     @staticmethod
+    def get_normalized_eccentricity(x, num_samples, mean, var):
+        ecc = EvolvingClustering.get_eccentricity(x, num_samples, mean, var)
+        return ecc / 2
+
+    @staticmethod
+    @jit(nopython=True)
     def get_eccentricity(x, num_samples, mean, var):
         if var == 0 and num_samples > 1:
             result = (1/num_samples)
         else:
             a = mean - x
-            result = ((1 / num_samples) + (np.linalg.norm(a) ** 2 / (num_samples * (var))))
+            result = ((1 / num_samples) + (np.linalg.norm(a) ** 2 / (num_samples * var)))
 
         return result
 
@@ -116,7 +122,11 @@ class EvolvingClustering:
 
             for mi in self.micro_clusters:
                 mi["changed"] = False
-                (num_samples, mean, variance, norm_ecc) = EvolvingClustering.get_updated_micro_cluster_values(xk, mi)
+                s_ik = mi["num_samples"]
+                mu_ik = mi["mean"]
+                var_ik = mi["variance"]
+
+                (num_samples, mean, variance, norm_ecc) = EvolvingClustering.get_updated_micro_cluster_values(xk, s_ik, mu_ik, var_ik)
 
                 if not self.is_outlier(num_samples, variance, norm_ecc):
                     self.update_micro_cluster(mi, xk, num_samples, mean, variance, norm_ecc)
@@ -254,7 +264,6 @@ class EvolvingClustering:
 
                 if not mi["active"]:
                     self.active_graph.remove_node(mi["id"])
-                    #self.active_graph.remove_edges_from([(mi["id"])])
 
         self.active_macro_clusters = list(nx.connected_components(self.active_graph))
 
@@ -266,12 +275,24 @@ class EvolvingClustering:
         var_i = mi["variance"]
         var_j = mj["variance"]
 
-        dist = [(a - b) ** 2 for a, b in zip(mu_i, mu_j)]
-        dist = math.sqrt(sum(dist))
+        d = EvolvingClustering.get_euclidean_distance(mu_i, mu_j)
+        dist = np.sqrt(np.sum(d))
 
-        deviation = 2 * (math.sqrt(var_i) + math.sqrt(var_j))
+        deviation = EvolvingClustering.get_deviation(var_i, var_j)
 
         return dist <= deviation
+
+    @staticmethod
+    @jit(nopython=True)
+    def get_deviation(var_i, var_j):
+        deviation = 2 * (np.sqrt(var_i) + np.sqrt(var_j))
+        return deviation
+
+    @staticmethod
+    @jit(nopython=True)
+    def get_euclidean_distance(mu_i, mu_j):
+        dist = [(a - b) ** 2 for a, b in zip(mu_i, mu_j)]
+        return dist
 
     def plot_micro_clusters(self, X):
 
