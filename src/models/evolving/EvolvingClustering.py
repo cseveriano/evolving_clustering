@@ -70,7 +70,7 @@ class EvolvingClustering:
     @staticmethod
     @jit(nopython=True)
     def update_variance(delta, s_ik, var_ik):
-        variance = ((s_ik - 1) / s_ik) * var_ik + (np.linalg.norm(delta) ** 2 / (s_ik - 1))
+        variance = ((s_ik - 1) / s_ik) * var_ik + (((np.linalg.norm(delta) * 2 / len(delta))** 2 / (s_ik - 1)))
         return variance
 
     @staticmethod
@@ -85,7 +85,7 @@ class EvolvingClustering:
             result = (1/num_samples)
         else:
             a = mean - x
-            result = ((1 / num_samples) + (np.linalg.norm(a) ** 2 / (num_samples * var)))
+            result = ((1 / num_samples) + ((np.linalg.norm(a) * 2 / len(a)) ** 2 / (num_samples * var)))
 
         return result
 

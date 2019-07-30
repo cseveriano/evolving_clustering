@@ -6,14 +6,16 @@ from time import time as time
 
 cmap = plt.cm.get_cmap('rainbow')
 
-X, y = load_dataset.load_dataset("s2")
+#X, y = load_dataset.load_dataset("s2")
+X, y = load_dataset.load_dataset("blobs", n_samples=1000, n_features=50)
+
 standardized_X = preprocessing.scale(X)
 minmaxscaler = preprocessing.MinMaxScaler()
 minmaxscaler.fit(standardized_X)
 X = minmaxscaler.transform(standardized_X)
 
 ## Running training and prediction..
-evol_model = EvolvingClustering.EvolvingClustering(variance_limit=0.001, debug=False)
+evol_model = EvolvingClustering.EvolvingClustering(variance_limit=0.001, debug=True)
 
 tic = time()
 evol_model.fit(X)
@@ -30,11 +32,11 @@ y_pred = evol_model.predict(X)
 # y_pred = evol_model.labels_
 ## END Load pickle
 
-y_pred = [x+1 for x in y_pred]
+#y_pred = [x+1 for x in y_pred]
 
-y_pred = util.adjust_labels(y_pred, y)
+#y_pred = util.adjust_labels(y_pred, y)
 
-util.plot_macro_clusters(X, evol_model)
+#util.plot_macro_clusters(X, evol_model)
 
 print("Purity: %10.4f"% (Metrics.purity(y,y_pred)))
 print("Precision: %10.4f"% (Metrics.precision(y,y_pred)))

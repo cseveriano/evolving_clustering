@@ -3,9 +3,7 @@ import numpy as np
 import os
 import pandas as pd
 
-def load_dataset(dataset_name, n_samples=1500):
-
-    n_samples = n_samples
+def load_dataset(dataset_name, n_samples=1500, n_features=2):
 
     if dataset_name == "moons":
         noisy_moons = datasets.make_moons(n_samples=n_samples, noise=.05)
@@ -15,7 +13,7 @@ def load_dataset(dataset_name, n_samples=1500):
                                               noise=.05)
         X, y = noisy_circles
     elif dataset_name == "blobs":
-        blobs = datasets.make_blobs(n_samples=n_samples, random_state=8)
+        blobs = datasets.make_blobs(n_samples=n_samples, n_features=n_features, random_state=8)
         X, y = blobs
     elif dataset_name == "no_structure":
         no_structure = np.random.rand(n_samples, 2), None
