@@ -7,7 +7,8 @@ from time import time as time
 cmap = plt.cm.get_cmap('rainbow')
 
 #X, y = load_dataset.load_dataset("s2")
-X, y = load_dataset.load_dataset("blobs", n_samples=1000, n_features=50)
+#X, y = load_dataset.load_dataset("blobs", n_samples=1000, n_features=50)
+X, y = load_dataset.load_dataset("gaussian")
 
 standardized_X = preprocessing.scale(X)
 minmaxscaler = preprocessing.MinMaxScaler()

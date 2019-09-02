@@ -27,10 +27,20 @@ def load_dataset(dataset_name, n_samples=1500, n_features=2):
         data = pd.read_csv(path, sep=",")
         X = data[['X1', 'X2']].values
         y = data['class'].values
+    elif dataset_name == "gaussian":
+        path = os.path.join(os.getcwd(), "../../../data/experiments/stream/gaussian_df.csv")
+        data = pd.read_csv(path, sep=",")
+        X_columns = data.columns[1:-1]
+        X = data[X_columns].values
+        y = data['class'].values
     elif dataset_name == "s2":
         Xpath = os.path.join(os.getcwd(), "../../../references/Codigos_MicroTeda/Bases de Dados/s2.txt")
         X = pd.read_csv(Xpath, sep="    ", header=None).values
-
+        ypath = os.path.join(os.getcwd(), "../../../references/Codigos_MicroTeda/Bases de Dados/s2-label.txt")
+        y = pd.read_csv(ypath, header=None).values
+    elif dataset_name == "kddcup99":
+        Xpath = os.path.join(os.getcwd(), "../../../references/Codigos_MicroTeda/Bases de Dados/s2.txt")
+        X = pd.read_csv(Xpath, sep="    ", header=None).values
         ypath = os.path.join(os.getcwd(), "../../../references/Codigos_MicroTeda/Bases de Dados/s2-label.txt")
         y = pd.read_csv(ypath, header=None).values
     else:
