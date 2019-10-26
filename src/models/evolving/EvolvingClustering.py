@@ -221,6 +221,14 @@ class EvolvingClustering:
                 changed_micro_clusters.append(m)
         return changed_micro_clusters
 
+    def get_changed_active_micro_clusters(self):
+        changed_micro_clusters = []
+
+        for m in self.micro_clusters:
+            if m["changed"] and m["active"]:
+                changed_micro_clusters.append(m)
+        return changed_micro_clusters
+
 
     def define_macro_clusters(self):
         micro_clusters_pairs = list(it.combinations(self.micro_clusters, 2))
