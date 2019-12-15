@@ -92,6 +92,10 @@ class DenStream:
         return self
 
     def fit_predict(self, X, y=None, sample_weight=None):
+        self.fit(X, y, sample_weight)
+        return self.predict(X)
+    
+    def fit(self, X, y=None, sample_weight=None):
         """
         Lorem ipsum dolor sit amet
 
@@ -126,7 +130,9 @@ class DenStream:
 
         for sample, weight in zip(X, sample_weight):
             self._partial_fit(sample, weight)
-        
+
+
+    def predict(self, X):
         p_micro_cluster_centers = np.array([p_micro_cluster.center() for
                                             p_micro_cluster in
                                             self.p_micro_clusters])
@@ -135,13 +141,11 @@ class DenStream:
         dbscan = DBSCAN(eps=0.3, algorithm='brute')
         dbscan.fit(p_micro_cluster_centers,
                    sample_weight=p_micro_cluster_weights)
-
         y = []
         for sample in X:
             index, _ = self._get_nearest_micro_cluster(sample,
                                                        self.p_micro_clusters)
             y.append(dbscan.labels_[index])
-
         return y
 
     def _get_nearest_micro_cluster(self, sample, micro_clusters):
