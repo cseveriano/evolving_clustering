@@ -2,8 +2,9 @@ import numpy as np
 from evolving import util
 import matplotlib.pyplot as plt
 import copy
+import time
 
-def prequential_evaluation(method, data, labels, metric, train_size, window_size=1, fading_factor=1, adjust_labels=0):
+def prequential_evaluation(method, data, labels, metric, train_size, window_size=1, fading_factor=1, adjust_labels=0, elapsed_time=False):
     '''
     :param method: clustering method to be evaluated
     :param data: data for training and test
@@ -22,6 +23,7 @@ def prequential_evaluation(method, data, labels, metric, train_size, window_size
     limit = len(labels)
     accumulated_error = 0
     error_list = []
+    elapsed_time_list = []
 
     while test_end < limit:
         train_start, train_end, test_start, test_end = getDataIndex(index, train_size, window_size, limit)
@@ -29,9 +31,15 @@ def prequential_evaluation(method, data, labels, metric, train_size, window_size
         test_data = data[test_start:test_end]
         index = test_start
 
+        if elapsed_time:
+            time_start = time.time()
         method.fit(train_data)
         y_hat = method.predict(test_data)
         y = labels[test_start:test_end]
+
+        if elapsed_time:
+            time_end = time.time()
+            elapsed_time_list.append(time_end - time_start)
 
         if adjust_labels == 2 or (index == test_start and adjust_labels == 1):
             y_hat = util.adjust_labels(y_hat, y)
@@ -40,7 +48,7 @@ def prequential_evaluation(method, data, labels, metric, train_size, window_size
         accumulated_error += fading_factor * error
         error_list.append(error)
 
-    return accumulated_error, error_list
+    return accumulated_error, error_list,elapsed_time_list
 
 
 def getDataIndex(index, train_size, window_size, limit):
