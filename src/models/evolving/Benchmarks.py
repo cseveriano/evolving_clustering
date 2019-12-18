@@ -3,6 +3,8 @@ from evolving import util
 import matplotlib.pyplot as plt
 import copy
 import time
+import os
+import psutil
 
 def prequential_evaluation(method, data, labels, metric, train_size, window_size=1, fading_factor=1, adjust_labels=0, elapsed_time=False):
     '''
@@ -24,6 +26,7 @@ def prequential_evaluation(method, data, labels, metric, train_size, window_size
     accumulated_error = 0
     error_list = []
     elapsed_time_list = []
+    memory_usage_list = []
 
     while test_end < limit:
         train_start, train_end, test_start, test_end = getDataIndex(index, train_size, window_size, limit)
@@ -48,7 +51,10 @@ def prequential_evaluation(method, data, labels, metric, train_size, window_size
         accumulated_error += fading_factor * error
         error_list.append(error)
 
-    return accumulated_error, error_list,elapsed_time_list
+        process = psutil.Process(os.getpid())
+        memory_usage_list.append(process.memory_info().rss / 1000.0) # memory consumption in MB
+
+    return {'accumulated_error':accumulated_error, 'error_list': error_list, 'elapsed_time_list': elapsed_time_list, 'memory_usage_list': memory_usage_list}
 
 
 def getDataIndex(index, train_size, window_size, limit):
