@@ -94,7 +94,7 @@ class DenStream:
     def fit_predict(self, X, y=None, sample_weight=None):
         self.fit(X, y, sample_weight)
         return self.predict(X)
-    
+
     def fit(self, X, y=None, sample_weight=None):
         """
         Lorem ipsum dolor sit amet
