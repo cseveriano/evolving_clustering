@@ -55,7 +55,7 @@ class EvolvingClustering2:
         self.tips = None
         self.debug = debug
 
-    def fit(self, X):
+    def fit(self, X, cleanup=False):
 
         lenx = len(X)
         i = 1
@@ -66,10 +66,11 @@ class EvolvingClustering2:
             if self.debug:
                 print("Training ", i , " of ", lenx)
             self.microteda_update(xk)
-            activate = (i == (len(X)))
-            self.macro_cluster_update(activate_macro=activate)
+            self.macro_cluster_update()
             i += 1
 
+        if cleanup:
+            self.macro_cluster_cleanup()
     def teda_mixture(self, xk, micro_list):
 
         n = len(micro_list)
@@ -251,7 +252,7 @@ class EvolvingClustering2:
         rec_ecc = (1 / k) + (np.dot(r_diff, r_diff)) / (k * rec_var)
         return rec_ecc
 
-    def macro_cluster_update(self, activate_macro=False):
+    def macro_cluster_update(self):
         if self.macro_obj is None:
             self.macro_obj = MacroCluster()
             self.macro_obj.nclust = 1
@@ -266,10 +267,7 @@ class EvolvingClustering2:
             raios = self.micro_obj.raios
             n = len(idxs)
             m = self.micro_obj.nclusters
-            d = len(centros[0])
             adj_matrix = self.macro_obj.adj_matrix
-
-#            dists = np.zeros((n, m))
 
             # calculate distances of micro clusters that changed for every center
             if m == 1:
@@ -297,10 +295,8 @@ class EvolvingClustering2:
 
             self.macro_obj.adj_matrix = adj_matrix
 
-            if activate_macro:
-                self.define_activations(adj_matrix, m)
+            self.define_activations(adj_matrix, m)
 
-        pass
 
     def define_activations(self, adj_matrix, m):
         if self.debug:
@@ -309,6 +305,7 @@ class EvolvingClustering2:
         grafo2 = nx.from_numpy_matrix(adj_matrix)
         self.macro_obj.macro_list = list(nx.connected_components(grafo2))
         self.macro_obj.nclust = len(self.macro_obj.macro_list)
+
         # check for outliers
         outs = np.array([False] * m, dtype=bool)
         for i in np.arange(self.macro_obj.nclust):
@@ -325,8 +322,7 @@ class EvolvingClustering2:
         macro2_obj.nclust = 0
         macro2_obj.macro_list = []
         macro2_obj.typicallity = None
-        #            centros2 = centros[outs == 0,:]
-        #            raios2 = raios[outs == 0]
+
         adj_matrix2 = adj_matrix[outs == False, :][:, outs == False]
         if (adj_matrix2 is not None and adj_matrix2.size != 0):
             if len(adj_matrix2.shape) == 1:
@@ -352,6 +348,14 @@ class EvolvingClustering2:
         self.macro_obj.out = outs
         self.macro_obj.macro2 = macro2_obj
         self.macro_obj.micro2 = micro2
+
+
+    ##cleanup
+    def macro_cluster_cleanup(self):
+        self.macro_obj.nclust = self.macro_obj.macro2.nclust
+        self.macro_obj.macro_list = copy.deepcopy(self.macro_obj.macro2.macro_list)
+        self.macro_obj.typicallity = copy.deepcopy(self.macro_obj.macro2.typicallity)
+        self.macro_obj.adj_matrix = self.macro_obj.adj_matrix[self.macro_obj.out == False, :][:, self.macro_obj.out == False]
 
     @staticmethod
     @jit(nopython=True)
