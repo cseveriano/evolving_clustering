@@ -44,7 +44,7 @@ class MacroCluster:
 
 
 class EvolvingClustering2:
-    def __init__(self, rad=0.04, debug=False):
+    def __init__(self, rad=0.04, cleanup=False, debug=False):
         self.out = 0
         self.rad = rad
         self.micro_obj = None
@@ -54,8 +54,9 @@ class EvolvingClustering2:
         self.teda = []
         self.tips = None
         self.debug = debug
+        self.cleanup = cleanup
 
-    def fit(self, X, cleanup=False):
+    def fit(self, X):
 
         lenx = len(X)
         i = 1
@@ -69,7 +70,9 @@ class EvolvingClustering2:
             self.macro_cluster_update()
             i += 1
 
-        if cleanup:
+        if self.cleanup:
+            if self.debug:
+                print("Cleaning macro list")
             self.macro_cluster_cleanup()
     def teda_mixture(self, xk, micro_list):
 
