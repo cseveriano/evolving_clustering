@@ -66,7 +66,8 @@ class EvolvingClustering2:
             if self.debug:
                 print("Training ", i , " of ", lenx)
             self.microteda_update(xk)
-            self.macro_cluster_update(xk)
+            activate = (i == (len(X)))
+            self.macro_cluster_update(activate_macro=activate)
             i += 1
 
     def teda_mixture(self, xk, micro_list):
@@ -250,7 +251,7 @@ class EvolvingClustering2:
         rec_ecc = (1 / k) + (np.dot(r_diff, r_diff)) / (k * rec_var)
         return rec_ecc
 
-    def macro_cluster_update(self, xk):
+    def macro_cluster_update(self, activate_macro=False):
         if self.macro_obj is None:
             self.macro_obj = MacroCluster()
             self.macro_obj.nclust = 1
@@ -294,61 +295,63 @@ class EvolvingClustering2:
                 adj_matrix[idxs,:] = adj
                 adj_matrix[:, idxs] = adj.T
 
-            grafo2 = nx.from_numpy_matrix(adj_matrix)
-            self.macro_obj.macro_list = list(nx.connected_components(grafo2))
-            self.macro_obj.nclust = len(self.macro_obj.macro_list)
-
-            # check for outliers
-            outs = np.array([False] * m, dtype=bool)
-            for i in np.arange(self.macro_obj.nclust):
-                auxlist = list(self.macro_obj.macro_list[i])
-                mdens = np.mean(self.micro_obj.dens[auxlist])
-                outs[auxlist] = [bool((d < mdens) or (c <= 2)) for d, c in zip(self.micro_obj.dens[auxlist], self.micro_obj.cont[auxlist])]
-
-            micro2 = MicroCluster()
-            micro2.nclusters = sum(outs == False)
-            micro2.dens = self.micro_obj.dens[outs == False]
-            micro2.tips = self.micro_obj.tips[outs == False]
-            micro2.micro_idx = self.micro_obj.micro_idx[outs == False]
-
-            macro2_obj = MacroCluster()
-
-            macro2_obj.nclust = 0
-            macro2_obj.macro_list = []
-            macro2_obj.typicallity = None
-#            centros2 = centros[outs == 0,:]
-#            raios2 = raios[outs == 0]
-
-            adj_matrix2 = adj_matrix[outs == False, :][:, outs == False]
-            if (adj_matrix2 is not None and adj_matrix2.size != 0):
-                if len(adj_matrix2.shape) == 1:
-                    adj_matrix2 = np.reshape(adj_matrix2,(adj_matrix2.shape[0], 1))
-                grafo2 = nx.from_numpy_matrix(adj_matrix2)
-                macro2_list = list(nx.connected_components(grafo2))
-
-                if macro2_list is not None:
-                    macro2_obj.nclust = len(macro2_list)
-                    macro2_obj.typicallity = [0] *  macro2_obj.nclust
-
-                    for i,mcs in enumerate(macro2_list):
-                        macro2_list[i] = micro2.micro_idx[list(mcs)]
-                        dens = micro2.dens[list(mcs)] / sum(micro2.dens[list(mcs)])
-                        tips = micro2.tips[list(mcs)]
-                        macro2_obj.typicallity[i] = sum(tips * dens)
-
-                    macro2_obj.typicallity = macro2_obj.typicallity / sum(macro2_obj.typicallity)
-                    macro2_obj.macro_list = macro2_list
-
-                else:
-                    macro2_obj.nclust = 0
-
-
-            self.macro_obj.out = outs
             self.macro_obj.adj_matrix = adj_matrix
-            self.macro_obj.macro2 = macro2_obj
-            self.macro_obj.micro2 = micro2
+
+            if activate_macro:
+                self.define_activations(adj_matrix, m)
 
         pass
+
+    def define_activations(self, adj_matrix, m):
+        if self.debug:
+            print("Defining activations")
+
+        grafo2 = nx.from_numpy_matrix(adj_matrix)
+        self.macro_obj.macro_list = list(nx.connected_components(grafo2))
+        self.macro_obj.nclust = len(self.macro_obj.macro_list)
+        # check for outliers
+        outs = np.array([False] * m, dtype=bool)
+        for i in np.arange(self.macro_obj.nclust):
+            auxlist = list(self.macro_obj.macro_list[i])
+            mdens = np.mean(self.micro_obj.dens[auxlist])
+            outs[auxlist] = [bool((d < mdens) or (c <= 2)) for d, c in
+                             zip(self.micro_obj.dens[auxlist], self.micro_obj.cont[auxlist])]
+        micro2 = MicroCluster()
+        micro2.nclusters = sum(outs == False)
+        micro2.dens = self.micro_obj.dens[outs == False]
+        micro2.tips = self.micro_obj.tips[outs == False]
+        micro2.micro_idx = self.micro_obj.micro_idx[outs == False]
+        macro2_obj = MacroCluster()
+        macro2_obj.nclust = 0
+        macro2_obj.macro_list = []
+        macro2_obj.typicallity = None
+        #            centros2 = centros[outs == 0,:]
+        #            raios2 = raios[outs == 0]
+        adj_matrix2 = adj_matrix[outs == False, :][:, outs == False]
+        if (adj_matrix2 is not None and adj_matrix2.size != 0):
+            if len(adj_matrix2.shape) == 1:
+                adj_matrix2 = np.reshape(adj_matrix2, (adj_matrix2.shape[0], 1))
+            grafo2 = nx.from_numpy_matrix(adj_matrix2)
+            macro2_list = list(nx.connected_components(grafo2))
+
+            if macro2_list is not None:
+                macro2_obj.nclust = len(macro2_list)
+                macro2_obj.typicallity = [0] * macro2_obj.nclust
+
+                for i, mcs in enumerate(macro2_list):
+                    macro2_list[i] = micro2.micro_idx[list(mcs)]
+                    dens = micro2.dens[list(mcs)] / sum(micro2.dens[list(mcs)])
+                    tips = micro2.tips[list(mcs)]
+                    macro2_obj.typicallity[i] = sum(tips * dens)
+
+                macro2_obj.typicallity = macro2_obj.typicallity / sum(macro2_obj.typicallity)
+                macro2_obj.macro_list = macro2_list
+
+            else:
+                macro2_obj.nclust = 0
+        self.macro_obj.out = outs
+        self.macro_obj.macro2 = macro2_obj
+        self.macro_obj.micro2 = micro2
 
     @staticmethod
     @jit(nopython=True)
