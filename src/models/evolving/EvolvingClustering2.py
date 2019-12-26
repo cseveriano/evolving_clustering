@@ -1,6 +1,6 @@
 import math
 import numpy as np
-import networkx as nx
+import igraph
 from numba import jit
 import copy
 
@@ -44,7 +44,7 @@ class MacroCluster:
 
 
 class EvolvingClustering2:
-    def __init__(self, rad=0.04, cleanup=False, debug=False):
+    def __init__(self, rad=0.04, debug=False):
         self.out = 0
         self.rad = rad
         self.micro_obj = None
@@ -54,7 +54,6 @@ class EvolvingClustering2:
         self.teda = []
         self.tips = None
         self.debug = debug
-        self.cleanup = cleanup
 
     def fit(self, X):
 
@@ -70,10 +69,6 @@ class EvolvingClustering2:
             self.macro_cluster_update()
             i += 1
 
-        if self.cleanup:
-            if self.debug:
-                print("Cleaning macro list")
-            self.macro_cluster_cleanup()
     def teda_mixture(self, xk, micro_list):
 
         n = len(micro_list)
@@ -110,7 +105,6 @@ class EvolvingClustering2:
         yhat = np.zeros(len(X))
         for ydx, xk in enumerate(X):
             nmacro = self.macro_obj.macro2.nclust
-            nmicro = self.micro_obj.nclusters
 
             tips = np.zeros(nmacro)
             for i, micro_list in enumerate(self.macro_obj.macro2.macro_list):
@@ -302,12 +296,14 @@ class EvolvingClustering2:
 
 
     def define_activations(self, adj_matrix, m):
-        if self.debug:
-            print("Defining activations")
 
-        grafo2 = nx.from_numpy_matrix(adj_matrix)
-        self.macro_obj.macro_list = list(nx.connected_components(grafo2))
-        self.macro_obj.nclust = len(self.macro_obj.macro_list)
+        grafo2 = igraph.Graph.Adjacency((adj_matrix > 0).tolist())
+        aux = grafo2.components().membership
+        self.macro_obj.nclust = max(aux) + 1
+        self.macro_obj.macro_list = []
+        for i in np.arange(self.macro_obj.nclust):
+            self.macro_obj.macro_list.append(self.micro_obj.micro_idx[aux == i])
+
 
         # check for outliers
         outs = np.array([False] * m, dtype=bool)
@@ -330,17 +326,22 @@ class EvolvingClustering2:
         if (adj_matrix2 is not None and adj_matrix2.size != 0):
             if len(adj_matrix2.shape) == 1:
                 adj_matrix2 = np.reshape(adj_matrix2, (adj_matrix2.shape[0], 1))
-            grafo2 = nx.from_numpy_matrix(adj_matrix2)
-            macro2_list = list(nx.connected_components(grafo2))
+
+            grafo2 = igraph.Graph.Adjacency((adj_matrix2 > 0).tolist())
+            aux = grafo2.components().membership
+            nclust = max(aux) + 1
+            macro2_list = []
+            for i in np.arange(nclust):
+                macro2_list.append(micro2.micro_idx[aux == i])
 
             if macro2_list is not None:
                 macro2_obj.nclust = len(macro2_list)
                 macro2_obj.typicallity = [0] * macro2_obj.nclust
 
-                for i, mcs in enumerate(macro2_list):
-                    macro2_list[i] = micro2.micro_idx[list(mcs)]
-                    dens = micro2.dens[list(mcs)] / sum(micro2.dens[list(mcs)])
-                    tips = micro2.tips[list(mcs)]
+                for i in np.arange(nclust):
+                    ind = aux == i
+                    dens = micro2.dens[list(ind)] / sum(micro2.dens[list(ind)])
+                    tips = micro2.tips[list(ind)]
                     macro2_obj.typicallity[i] = sum(tips * dens)
 
                 macro2_obj.typicallity = macro2_obj.typicallity / sum(macro2_obj.typicallity)
@@ -352,13 +353,6 @@ class EvolvingClustering2:
         self.macro_obj.macro2 = macro2_obj
         self.macro_obj.micro2 = micro2
 
-
-    ##cleanup
-    def macro_cluster_cleanup(self):
-        self.macro_obj.nclust = self.macro_obj.macro2.nclust
-        self.macro_obj.macro_list = copy.deepcopy(self.macro_obj.macro2.macro_list)
-        self.macro_obj.typicallity = copy.deepcopy(self.macro_obj.macro2.typicallity)
-        self.macro_obj.adj_matrix = self.macro_obj.adj_matrix[self.macro_obj.out == False, :][:, self.macro_obj.out == False]
 
     @staticmethod
     @jit(nopython=True)
