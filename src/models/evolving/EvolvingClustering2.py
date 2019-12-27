@@ -63,9 +63,9 @@ class EvolvingClustering2:
         if self.debug:
             print("Training...")
 
-        x_embedded = EvolvingClustering2.reduce_dims(X)
+        X_embedded = EvolvingClustering2.reduce_dims(X)
 
-        for xk in X:
+        for xk in X_embedded:
             if self.debug:
                 print("Training ", i , " of ", lenx)
             self.microteda_update(xk)
@@ -106,7 +106,9 @@ class EvolvingClustering2:
 
     def predict(self, X):
         yhat = np.zeros(len(X))
-        for ydx, xk in enumerate(X):
+        X_embedded = EvolvingClustering2.reduce_dims(X)
+
+        for ydx, xk in enumerate(X_embedded):
             nmacro = self.macro_obj.macro2.nclust
 
             tips = np.zeros(nmacro)
