@@ -4,6 +4,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import itertools as it
 from numba import jit
+from sklearn.manifold import TSNE
 
 class EvolvingClustering:
     def __init__(self, macro_cluster_update=1,
@@ -70,7 +71,7 @@ class EvolvingClustering:
     @staticmethod
     @jit(nopython=True)
     def update_variance(delta, s_ik, var_ik):
-        variance = ((s_ik - 1) / s_ik) * var_ik + (((np.linalg.norm(delta) * (1 / math.sqrt(len(delta)))) ** 2) / (s_ik - 1))
+        variance = ((s_ik - 1) / s_ik) * var_ik + ((np.linalg.norm(delta) ** 2) / (s_ik - 1))
         return variance
 
     @staticmethod
@@ -85,18 +86,19 @@ class EvolvingClustering:
             result = (1/num_samples)
         else:
             a = mean - x
-            result = ((1 / num_samples) + (((np.linalg.norm(a) * (1 / math.sqrt(len(a)))) ** 2) / (num_samples * var)))
+            result = ((1 / num_samples) + ((np.linalg.norm(a) ** 2) / (num_samples * var)))
 
         return result
 
     def fit(self, X, update_macro_clusters=True):
 
         lenx = len(X)
+        X_embedded = EvolvingClustering.reduce_dims(X)
 
         if self.debug:
             print("Training...")
 
-        for xk in X:
+        for xk in X_embedded:
             self.update_micro_clusters(xk)
 
             self.total_num_samples += 1
@@ -143,11 +145,12 @@ class EvolvingClustering:
         self.labels_ = np.zeros(len(X), dtype=int)
         index = 0
         lenx = len(X)
+        X_embedded = EvolvingClustering.reduce_dims(X)
 
         if self.debug:
             print('Predicting...')
 
-        for xk in X:
+        for xk in X_embedded:
             memberships = []
             for mg in self.active_macro_clusters:
                 active_micro_clusters = self.get_active_micro_clusters(mg)
@@ -317,3 +320,11 @@ class EvolvingClustering:
 
             ax.add_artist(circle)
         plt.draw()
+
+    @staticmethod
+    def reduce_dims(X):
+        dims = len(X[0])
+        if dims > 2:
+            return TSNE(n_components=2).fit_transform(X)
+        else:
+            return X
