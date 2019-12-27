@@ -3,6 +3,7 @@ import numpy as np
 import igraph
 from numba import jit
 import copy
+from sklearn.manifold import TSNE
 
 class Teda:
     def __init__(self):
@@ -61,6 +62,8 @@ class EvolvingClustering2:
         i = 1
         if self.debug:
             print("Training...")
+
+        x_embedded = EvolvingClustering2.reduce_dims(X)
 
         for xk in X:
             if self.debug:
@@ -358,3 +361,11 @@ class EvolvingClustering2:
     @jit(nopython=True)
     def calculate_distance(changed_center, center):
         return np.linalg.norm(changed_center - center)
+
+    @staticmethod
+    def reduce_dims(X):
+        dims = len(X[0])
+        if dims > 2:
+            return TSNE(n_components=2).fit_transform(X)
+        else:
+            return X
