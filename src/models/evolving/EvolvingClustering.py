@@ -1,10 +1,9 @@
 import math
 import numpy as np
-import networkx as nx
 import matplotlib.pyplot as plt
-import itertools as it
+from igraph import Graph
 from numba import jit
-from sklearn.manifold import TSNE
+
 
 class EvolvingClustering:
     def __init__(self, macro_cluster_update=1,
@@ -14,12 +13,13 @@ class EvolvingClustering:
         self.micro_clusters = []
         self.macro_clusters = []
         self.active_macro_clusters = []
-        self.graph = nx.Graph()
-        self.active_graph = nx.Graph()
+        self.graph = Graph()
+        self.active_graph = Graph()
         self.variance_limit = variance_limit
         self.macro_cluster_update = macro_cluster_update
         self.debug = debug
         self.plot_graph = plot_graph
+        self.changed_micro_clusters = []
 
     @staticmethod
     def get_micro_cluster(id, num_samples, mean, variance, density):
@@ -33,8 +33,10 @@ class EvolvingClustering:
         variance = 0
         density = 0
 
-        self.micro_clusters.append(EvolvingClustering.get_micro_cluster(id, num_samples, mean, variance, density))
-        self.graph.add_node(id)
+        new_mc = EvolvingClustering.get_micro_cluster(id, num_samples, mean, variance, density)
+        self.micro_clusters.append(new_mc)
+        self.changed_micro_clusters.append(new_mc)
+        self.graph.add_vertex(name=id)
 
     def is_outlier(self, s_ik, var_ik, norm_ecc):
 
@@ -47,13 +49,14 @@ class EvolvingClustering:
 
         return outlier
 
-    @staticmethod
-    def update_micro_cluster(micro_cluster, x, num_samples, mean, variance, norm_ecc):
+    def update_micro_cluster(self, micro_cluster, num_samples, mean, variance, norm_ecc):
         micro_cluster["num_samples"] = num_samples
         micro_cluster["mean"] = mean
         micro_cluster["variance"] = variance
         micro_cluster["density"] = 1 / norm_ecc
         micro_cluster["changed"] = True
+        if micro_cluster not in self.changed_micro_clusters:
+            self.changed_micro_clusters.append(micro_cluster)
 
     @staticmethod
     def get_updated_micro_cluster_values(x, s_ik, mu_ik, var_ik):
@@ -71,7 +74,7 @@ class EvolvingClustering:
     @staticmethod
     @jit(nopython=True)
     def update_variance(delta, s_ik, var_ik):
-        variance = ((s_ik - 1) / s_ik) * var_ik + ((np.linalg.norm(delta) ** 2) / (s_ik - 1))
+        variance = ((s_ik - 1) / s_ik) * var_ik + (((np.linalg.norm(delta) * 2 / len(delta))** 2 / (s_ik - 1)))
         return variance
 
     @staticmethod
@@ -86,19 +89,18 @@ class EvolvingClustering:
             result = (1/num_samples)
         else:
             a = mean - x
-            result = ((1 / num_samples) + ((np.linalg.norm(a) ** 2) / (num_samples * var)))
+            result = ((1 / num_samples) + ((np.linalg.norm(a) * 2 / len(a)) ** 2 / (num_samples * var)))
 
         return result
 
     def fit(self, X, update_macro_clusters=True):
 
         lenx = len(X)
-        X_embedded = EvolvingClustering.reduce_dims(X)
 
         if self.debug:
             print("Training...")
 
-        for xk in X_embedded:
+        for xk in X:
             self.update_micro_clusters(xk)
 
             self.total_num_samples += 1
@@ -131,7 +133,7 @@ class EvolvingClustering:
                 (num_samples, mean, variance, norm_ecc) = EvolvingClustering.get_updated_micro_cluster_values(xk, s_ik, mu_ik, var_ik)
 
                 if not self.is_outlier(num_samples, variance, norm_ecc):
-                    self.update_micro_cluster(mi, xk, num_samples, mean, variance, norm_ecc)
+                    self.update_micro_cluster(mi, num_samples, mean, variance, norm_ecc)
                     new_micro_cluster = False
 
             if new_micro_cluster:
@@ -145,12 +147,11 @@ class EvolvingClustering:
         self.labels_ = np.zeros(len(X), dtype=int)
         index = 0
         lenx = len(X)
-        X_embedded = EvolvingClustering.reduce_dims(X)
 
         if self.debug:
             print('Predicting...')
 
-        for xk in X_embedded:
+        for xk in X:
             memberships = []
             for mg in self.active_macro_clusters:
                 active_micro_clusters = self.get_active_micro_clusters(mg)
@@ -234,21 +235,26 @@ class EvolvingClustering:
 
 
     def define_macro_clusters(self):
-        micro_clusters_pairs = list(it.combinations(self.micro_clusters, 2))
 
-        # Create macro-clusters from intersected micro-clusters
-        for m in micro_clusters_pairs:
-            mi = m[0]
-            mj = m[1]
-            if mi["id"] != mj["id"] :
-                edge = (mi["id"],mj["id"])
-                if EvolvingClustering.has_intersection(mi, mj):
-                    self.graph.add_edge(*edge)
-                elif EvolvingClustering.nodes_connected(mi["id"],mj["id"], self.graph):
-                    self.graph.remove_edge(*edge)
+        for mi in self.changed_micro_clusters:
+            for mj in self.micro_clusters:
+                if mi["id"] != mj["id"]:
+                    if EvolvingClustering.has_intersection(mi, mj):
+                        self.graph.add_edge(mi["id"],mj["id"])
+                    elif self.graph[mi["id"],mj["id"]]:
+                        self.graph.delete_edges([(mi["id"],mj["id"])])
 
-        self.macro_clusters = list(nx.connected_components(self.graph))
+        aux = self.graph.components().membership
+        vertices = np.array(self.graph.vs)
 
+        nmacro_clusters = max(aux) + 1
+        self.macro_clusters.clear()
+
+        for i in np.arange(nmacro_clusters):
+            micro_ids = [m["name"] for m in vertices[aux==i]]
+            self.macro_clusters.append(micro_ids)
+
+        self.changed_micro_clusters.clear()
 
 
 
@@ -259,6 +265,7 @@ class EvolvingClustering:
     def define_activations(self):
 
         self.active_graph = self.graph.copy()
+        to_delete_ids = []
 
         for mg in self.macro_clusters:
             num_micro = len(mg)
@@ -269,14 +276,25 @@ class EvolvingClustering:
 
             mean_density = total_density / num_micro
 
+
             for i in mg:
                 mi = self.micro_clusters[i]
                 mi["active"] = (mi["num_samples"] > 2) and (mi["density"] >= mean_density)
 
                 if not mi["active"]:
-                    self.active_graph.remove_node(mi["id"])
+                    to_delete_ids.append(mi["id"])
 
-        self.active_macro_clusters = list(nx.connected_components(self.active_graph))
+        self.active_graph.delete_vertices(to_delete_ids)
+
+        aux = self.active_graph.components().membership
+        vertices = np.array(self.active_graph.vs)
+
+        nmacro_clusters = max(aux) + 1
+        self.active_macro_clusters.clear()
+
+        for i in np.arange(nmacro_clusters):
+            micro_ids = [m["name"] for m in vertices[aux == i]]
+            self.active_macro_clusters.append(micro_ids)
 
 
     @staticmethod
@@ -287,7 +305,7 @@ class EvolvingClustering:
         var_j = mj["variance"]
 
         d = EvolvingClustering.get_euclidean_distance(mu_i, mu_j)
-        dist = np.sqrt(np.sum(d))
+        dist = np.sqrt(np.sum(d)) * (2 / len(mu_i))
 
         deviation = EvolvingClustering.get_deviation(var_i, var_j)
 
@@ -320,11 +338,3 @@ class EvolvingClustering:
 
             ax.add_artist(circle)
         plt.draw()
-
-    @staticmethod
-    def reduce_dims(X):
-        dims = len(X[0])
-        if dims > 2:
-            return TSNE(n_components=2).fit_transform(X)
-        else:
-            return X
