@@ -1,7 +1,8 @@
 import math
 import numpy as np
+import networkx as nx
 import matplotlib.pyplot as plt
-from igraph import Graph
+import itertools as it
 from numba import jit
 
 
@@ -13,8 +14,8 @@ class EvolvingClustering:
         self.micro_clusters = []
         self.macro_clusters = []
         self.active_macro_clusters = []
-        self.graph = Graph()
-        self.active_graph = Graph()
+        self.graph = nx.Graph()
+        self.active_graph = nx.Graph()
         self.variance_limit = variance_limit
         self.macro_cluster_update = macro_cluster_update
         self.debug = debug
@@ -36,8 +37,7 @@ class EvolvingClustering:
         new_mc = EvolvingClustering.get_micro_cluster(id, num_samples, mean, variance, density)
         self.micro_clusters.append(new_mc)
         self.changed_micro_clusters.append(new_mc)
-        self.graph.add_vertex(name=id)
-
+        self.graph.add_node(id)
     def is_outlier(self, s_ik, var_ik, norm_ecc):
 
         if s_ik < 3:
@@ -239,21 +239,13 @@ class EvolvingClustering:
         for mi in self.changed_micro_clusters:
             for mj in self.micro_clusters:
                 if mi["id"] != mj["id"]:
+                    edge = (mi["id"],mj["id"])
                     if EvolvingClustering.has_intersection(mi, mj):
-                        self.graph.add_edge(mi["id"],mj["id"])
-                    elif self.graph[mi["id"],mj["id"]]:
-                        self.graph.delete_edges([(mi["id"],mj["id"])])
+                        self.graph.add_edge(*edge)
+                    elif EvolvingClustering.nodes_connected(mi["id"],mj["id"], self.graph):
+                        self.graph.remove_edge(*edge)
 
-        aux = self.graph.components().membership
-        vertices = np.array(self.graph.vs)
-
-        nmacro_clusters = max(aux) + 1
-        self.macro_clusters.clear()
-
-        for i in np.arange(nmacro_clusters):
-            micro_ids = [m["name"] for m in vertices[aux==i]]
-            self.macro_clusters.append(micro_ids)
-
+        self.macro_clusters = list(nx.connected_components(self.graph))
         self.changed_micro_clusters.clear()
 
 
@@ -265,7 +257,6 @@ class EvolvingClustering:
     def define_activations(self):
 
         self.active_graph = self.graph.copy()
-        to_delete_ids = []
 
         for mg in self.macro_clusters:
             num_micro = len(mg)
@@ -276,25 +267,14 @@ class EvolvingClustering:
 
             mean_density = total_density / num_micro
 
-
             for i in mg:
                 mi = self.micro_clusters[i]
                 mi["active"] = (mi["num_samples"] > 2) and (mi["density"] >= mean_density)
 
                 if not mi["active"]:
-                    to_delete_ids.append(mi["id"])
+                    self.active_graph.remove_node(mi["id"])
 
-        self.active_graph.delete_vertices(to_delete_ids)
-
-        aux = self.active_graph.components().membership
-        vertices = np.array(self.active_graph.vs)
-
-        nmacro_clusters = max(aux) + 1
-        self.active_macro_clusters.clear()
-
-        for i in np.arange(nmacro_clusters):
-            micro_ids = [m["name"] for m in vertices[aux == i]]
-            self.active_macro_clusters.append(micro_ids)
+        self.active_macro_clusters = list(nx.connected_components(self.active_graph))
 
 
     @staticmethod
