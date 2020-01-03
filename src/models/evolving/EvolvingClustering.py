@@ -285,7 +285,7 @@ class EvolvingClustering:
         var_j = mj["variance"]
 
         d = EvolvingClustering.get_euclidean_distance(mu_i, mu_j)
-        dist = np.sqrt(np.sum(d)) * (2 / len(mu_i))
+        dist = np.sqrt(np.sum(d))
 
         deviation = EvolvingClustering.get_deviation(var_i, var_j)
 
