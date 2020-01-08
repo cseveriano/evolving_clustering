@@ -205,7 +205,7 @@ class EvolvingClustering2:
             rec_ecc = 0
         elif rec_var == 0 and k > 1:
             rec_ecc = 0
-        elif k < 3 and rec_var > 0.001:
+        elif k < 3 and rec_var > self.rad   :
             rec_ecc = 1000
         else:
             r_diff = np.array(rec_mean - curr_observation)

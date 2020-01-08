@@ -8,7 +8,7 @@ from numba import jit
 
 class EvolvingClustering:
     def __init__(self, macro_cluster_update=1,
-                 verbose=0, variance_limit=0.001, debug=False, plot_graph=False):
+                 verbose=0, variance_limit=0.001, decay = 100, debug=False, plot_graph=False):
         self.verbose = verbose
         self.total_num_samples = 0
         self.micro_clusters = []
@@ -21,23 +21,30 @@ class EvolvingClustering:
         self.debug = debug
         self.plot_graph = plot_graph
         self.changed_micro_clusters = []
+        self.fading_factor = 1 / decay
 
     @staticmethod
-    def get_micro_cluster(id, num_samples, mean, variance, density):
-        return {"id": id,"num_samples": num_samples, "mean": mean, "variance": variance, "density": density, "active": True, "changed": True}
+    def get_micro_cluster(id, num_samples, mean, variance, density, life):
+        return {"id": id,"num_samples": num_samples, "mean": mean, "variance": variance,
+                "density": density, "active": True, "changed": True, "life": life}
 
     def create_new_micro_cluster(self, x):
 
-        id = len(self.micro_clusters)
+        if len(self.micro_clusters) == 0:
+            id = 1
+        else:
+            id = max([m["id"] for m in self.micro_clusters]) + 1
+
         num_samples = 1
         mean = x
         variance = 0
         density = 0
-
-        new_mc = EvolvingClustering.get_micro_cluster(id, num_samples, mean, variance, density)
+        life = 1
+        new_mc = EvolvingClustering.get_micro_cluster(id, num_samples, mean, variance, density, life)
         self.micro_clusters.append(new_mc)
         self.changed_micro_clusters.append(new_mc)
         self.graph.add_node(id)
+
     def is_outlier(self, s_ik, var_ik, norm_ecc):
 
         if s_ik < 3:
@@ -49,14 +56,29 @@ class EvolvingClustering:
 
         return outlier
 
-    def update_micro_cluster(self, micro_cluster, num_samples, mean, variance, norm_ecc):
+    def update_micro_cluster(self, xk, micro_cluster, num_samples, mean, variance, norm_ecc):
+
+        self.update_life(xk, micro_cluster)
+
         micro_cluster["num_samples"] = num_samples
         micro_cluster["mean"] = mean
         micro_cluster["variance"] = variance
         micro_cluster["density"] = 1 / norm_ecc
         micro_cluster["changed"] = True
+
         if micro_cluster not in self.changed_micro_clusters:
             self.changed_micro_clusters.append(micro_cluster)
+
+    def update_life(self, xk, micro_cluster):
+        previous_mean = micro_cluster["mean"]
+        previous_var = micro_cluster["variance"]
+        if previous_var > 0:
+            d = EvolvingClustering.get_euclidean_distance(xk, previous_mean)
+            dist = np.sqrt(np.sum(d))
+            rt = np.sqrt(previous_var)
+            micro_cluster["life"] = micro_cluster["life"] + (((rt - dist) / rt) * self.fading_factor)
+        else:
+            micro_cluster["life"] = 1
 
     @staticmethod
     def get_updated_micro_cluster_values(x, s_ik, mu_ik, var_ik):
@@ -103,6 +125,8 @@ class EvolvingClustering:
         for xk in X:
             self.update_micro_clusters(xk)
 
+            self.prune_micro_clusters()
+
             self.total_num_samples += 1
 
             if self.debug:
@@ -133,7 +157,7 @@ class EvolvingClustering:
                 (num_samples, mean, variance, norm_ecc) = EvolvingClustering.get_updated_micro_cluster_values(xk, s_ik, mu_ik, var_ik)
 
                 if not self.is_outlier(num_samples, variance, norm_ecc):
-                    self.update_micro_cluster(mi, num_samples, mean, variance, norm_ecc)
+                    self.update_micro_cluster(xk, mi, num_samples, mean, variance, norm_ecc)
                     new_micro_cluster = False
 
             if new_micro_cluster:
@@ -204,7 +228,7 @@ class EvolvingClustering:
     def get_active_micro_clusters(self, mg):
         active_micro_clusters = []
         for mi_ind in mg:
-            mi = self.micro_clusters[mi_ind]
+            mi = next(item for item in self.micro_clusters if item["id"] == mi_ind)
             if mi["active"]:
                 active_micro_clusters.append(mi)
         return active_micro_clusters
@@ -263,12 +287,13 @@ class EvolvingClustering:
             total_density = 0
 
             for i in mg:
-                total_density += self.micro_clusters[i]["density"]
+                dens = next(item["density"] for item in self.micro_clusters if item["id"] == i)
+                total_density += dens
 
             mean_density = total_density / num_micro
 
             for i in mg:
-                mi = self.micro_clusters[i]
+                mi = next(item for item in self.micro_clusters if item["id"] == i)
                 mi["active"] = (mi["num_samples"] > 2) and (mi["density"] >= mean_density)
 
                 if not mi["active"]:
@@ -318,3 +343,17 @@ class EvolvingClustering:
 
             ax.add_artist(circle)
         plt.draw()
+
+    def prune_micro_clusters(self):
+        for mc in self.micro_clusters:
+
+            if not mc["active"]:
+                mc["life"] = mc["life"] - self.fading_factor
+
+                if mc["life"] < 0:
+                    self.micro_clusters.remove(mc)
+
+                    if mc in self.changed_micro_clusters:
+                        self.changed_micro_clusters.remove(mc)
+
+                    self.graph.remove_node(mc["id"])

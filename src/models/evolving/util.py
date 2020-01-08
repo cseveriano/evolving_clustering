@@ -30,7 +30,7 @@ def plot_macro_clusters(X, model):
 
     for mg, c in zip(macro_clusters, colors):
         for i in mg:
-            mi = model.micro_clusters[i]
+            mi = next(item for item in model.micro_clusters if item["id"] == i)
 
             mean = mi["mean"]
             std = math.sqrt(mi["variance"])
@@ -39,3 +39,11 @@ def plot_macro_clusters(X, model):
 
     plt.draw()
 
+
+def plot_data_labels(X, y):
+    ax = plt.gca()
+    colors = cm.rainbow(np.linspace(0, 1, np.max(y)))
+    for ind, label in enumerate(np.unique(y)):
+        ax.scatter(X[y==label, 0], X[y==label, 1], s=1, color=colors[ind])
+
+    plt.draw()
