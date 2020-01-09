@@ -115,7 +115,7 @@ class EvolvingClustering:
 
         return result
 
-    def fit(self, X, update_macro_clusters=True):
+    def fit(self, X, update_macro_clusters=True, prune_micro_clusters=True):
 
         lenx = len(X)
 
@@ -125,7 +125,8 @@ class EvolvingClustering:
         for xk in X:
             self.update_micro_clusters(xk)
 
-            self.prune_micro_clusters()
+            if prune_micro_clusters:
+                self.prune_micro_clusters()
 
             self.total_num_samples += 1
 
