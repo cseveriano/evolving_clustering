@@ -1,11 +1,6 @@
-import numpy as np
-import math
 from sklearn import preprocessing
-from evolving import EvolvingClustering, load_dataset, Metrics, util
-from evolving import EvolvingClustering2
-import matplotlib.pyplot as plt
-import pickle
-from matplotlib import cm
+from evolving import EvolvingClustering
+from evolving.util import load_dataset
 
 
 def main():

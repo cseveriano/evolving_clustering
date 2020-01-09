@@ -1,8 +1,7 @@
 from sklearn import preprocessing
-from evolving import EvolvingClustering, load_dataset, Metrics, util
+from evolving import EvolvingClustering, util
+from evolving.util import Metrics, load_dataset
 import matplotlib.pyplot as plt
-import numpy as np
-import pickle
 from time import time as time
 
 cmap = plt.cm.get_cmap('rainbow')
@@ -55,7 +54,7 @@ print('Operation took {} ms'.format((tac - tic) * 1e3))
 util.plot_macro_clusters(X, evol_model)
 
 # print("Purity: %10.4f"% (Metrics.purity(y,y_pred)))
-print("Precision: %10.4f"% (Metrics.precision(y,y_pred)))
+print("Precision: %10.4f" % (Metrics.precision(y, y_pred)))
 # print("Recall: %10.4f"% (Metrics.recall(y,y_pred)))
 # print("CH Score: %10.4f"% (Metrics.ch_score(y,y_pred)))
 

@@ -1,7 +1,5 @@
-from sklearn import preprocessing
-from evolving import EvolvingClustering, load_dataset, Metrics, util
+from evolving import EvolvingClustering, util
 import matplotlib.pyplot as plt
-import pickle
 from time import time as time
 
 cmap = plt.cm.get_cmap('rainbow')

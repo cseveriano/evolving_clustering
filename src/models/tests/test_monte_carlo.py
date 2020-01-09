@@ -1,6 +1,6 @@
 from sklearn import preprocessing
-from evolving import EvolvingClustering, load_dataset, Metrics, util, Benchmarks
-import matplotlib.pyplot as plt
+from evolving import EvolvingClustering
+from evolving.util import Benchmarks, load_dataset
 import numpy as np
 from sklearn.metrics import adjusted_rand_score
 
@@ -15,4 +15,4 @@ evol_model = EvolvingClustering.EvolvingClustering(macro_cluster_update=1,  vari
 
 train_size = 3000
 window_size = 100
-Benchmarks.monte_carlo_evaluation(evol_model, adjusted_rand_score, X[0:400], y[0:400],  trials=10)
+Benchmarks.monte_carlo_evaluation(evol_model, adjusted_rand_score, X[0:400], y[0:400], trials=10)

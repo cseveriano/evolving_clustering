@@ -1,9 +1,8 @@
 from sklearn import preprocessing
-from evolving import EvolvingClustering, load_dataset, Metrics, Benchmarks
+from evolving import EvolvingClustering
+from evolving.util import Metrics, Benchmarks, load_dataset
 import matplotlib.pyplot as plt
 import numpy as np
-import pickle
-from time import time as time
 
 cmap = plt.cm.get_cmap('rainbow')
 
@@ -21,6 +20,6 @@ evol_model = EvolvingClustering.EvolvingClustering(variance_limit=0.001, debug=T
 
 train_size = 100
 window_size = 100
-result = Benchmarks.prequential_evaluation(evol_model, X[:500], y[:500], Metrics.precision,train_size, window_size, elapsed_time=True)
+result = Benchmarks.prequential_evaluation(evol_model, X[:500], y[:500], Metrics.precision, train_size, window_size, elapsed_time=True)
 
 

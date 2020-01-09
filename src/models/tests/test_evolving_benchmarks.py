@@ -1,10 +1,9 @@
 from sklearn import preprocessing
-from evolving import EvolvingClustering, load_dataset, Metrics, util
+from evolving import EvolvingClustering
+from evolving.util import Metrics, load_dataset
 import matplotlib.pyplot as plt
-import pickle
 from time import time as time
 from benchmarks.denstream.DenStream import DenStream
-from benchmarks.clustream.CluStream import CluStream
 
 cmap = plt.cm.get_cmap('rainbow')
 
@@ -38,9 +37,9 @@ denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=3)
 y_pred = denstream.fit_predict(X)
 #y_pred[y_pred == -1] = 5
 
-print("Purity: %10.4f"% (Metrics.purity(y,y_pred)))
-print("Precision: %10.4f"% (Metrics.precision(y,y_pred)))
-print("Recall: %10.4f"% (Metrics.recall(y,y_pred)))
+print("Purity: %10.4f" % (Metrics.purity(y, y_pred)))
+print("Precision: %10.4f" % (Metrics.precision(y, y_pred)))
+print("Recall: %10.4f" % (Metrics.recall(y, y_pred)))
 
 # DENSTREAM #########################################
 
@@ -55,9 +54,9 @@ print('Operation took {} ms'.format((tac - tic) * 1e3))
 
 y_pred = evol_model.predict(X)
 
-print("Purity: %10.4f"% (Metrics.purity(y,y_pred)))
-print("Precision: %10.4f"% (Metrics.precision(y,y_pred)))
-print("Recall: %10.4f"% (Metrics.recall(y,y_pred)))
+print("Purity: %10.4f" % (Metrics.purity(y, y_pred)))
+print("Precision: %10.4f" % (Metrics.precision(y, y_pred)))
+print("Recall: %10.4f" % (Metrics.recall(y, y_pred)))
 
 # EVOLVING CLUSTERING ###############################
 
