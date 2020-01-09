@@ -253,8 +253,8 @@ class EvolvingClustering:
     def get_changed_active_micro_clusters(self):
         changed_micro_clusters = []
 
-        for m in self.micro_clusters:
-            if m["changed"] and m["active"]:
+        for m in self.changed_micro_clusters:
+            if m["active"]:
                 changed_micro_clusters.append(m)
         return changed_micro_clusters
 
