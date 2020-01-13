@@ -1,7 +1,7 @@
-evolving_clustering
+Evolving Clustering - microTEDAclus
 ==============================
 
-Evolving Clustering
+Python implementation of the microTEDAclus algorithm, presented in "Evolving Clustering Algorithm based on the Mixture of Typicalities of Micro Clusters".
 
 Project Organization
 ------------
