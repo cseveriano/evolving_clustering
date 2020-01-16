@@ -194,28 +194,21 @@ class EvolvingClustering:
     @staticmethod
     def calculate_membership(x, active_micro_clusters):
         total_density = 0
-        for m in active_micro_clusters:
-            total_density += m["density"]
+        tips = np.zeros(len(active_micro_clusters))
+        dens = np.zeros(len(active_micro_clusters))
 
-        mb = 0
-        for m in active_micro_clusters:
-            d = m["density"]
+        for i, m in enumerate(active_micro_clusters):
+            (num_samples, mean, variance, norm_ecc) = EvolvingClustering.get_updated_micro_cluster_values(x, m["num_samples"],
+                                                                                                          m["mean"],
+                                                                                                          m["variance"])
+            tips[i] = 1 - norm_ecc
+            density = 1 / norm_ecc
+            dens[i] = density
+            total_density += density
 
-            t = 1 - EvolvingClustering.get_normalized_eccentricity(x, m["num_samples"], m["mean"], m["variance"])
-            mb += (d / total_density) * t
+        mb = sum([(d / total_density) * t for d, t in zip(tips, dens)])
+
         return mb
-
-
-    @staticmethod
-    def calculate_micro_membership(x, params):
-
-        micro_cluster = params[0]
-        total_density = params[1]
-
-        d = micro_cluster["density"]
-
-        t = 1 - EvolvingClustering.get_normalized_eccentricity(x, micro_cluster["num_samples"], micro_cluster["mean"], micro_cluster["variance"])
-        return (d / total_density) * t
 
     def get_total_density(self):
         active_mcs = self.get_all_active_micro_clusters()

@@ -36,7 +36,7 @@ evol_model.fit(X)
 tac = time()
 print('Operation took {} ms'.format((tac - tic) * 1e3))
 
-#y_pred = evol_model.predict(X)
+y_pred = evol_model.predict(X)
 
 #pickle.dump(evol_model, open("evol_model.pkl", "wb"))
 ## END Running training and prediction..
